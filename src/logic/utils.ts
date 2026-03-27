@@ -1,0 +1,74 @@
+import type { Coordinate } from '../types.ts';
+
+import { SPORT_ICONS } from '../config.ts';
+
+export function encodeBase64(str: string): string {
+  return btoa(String.fromCodePoint(...new TextEncoder().encode(str)));
+}
+
+export function basicAuthHeader(user: string, pass: string): string {
+  return 'Basic ' + encodeBase64(user + ':' + pass);
+}
+
+export function sportIcon(sport: string): string {
+  return SPORT_ICONS[sport] || '🏃';
+}
+
+export function formatDist(m: number): string {
+  return (m / 1000).toFixed(1) + ' km';
+}
+
+export function formatDur(s: number): string {
+  if (!s || s <= 0) return '–';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+export function formatDate(iso: string | undefined): string {
+  if (!iso) return '–';
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/** Haversine cumulative distance in meters for coordinate arrays. */
+export function cumulativeDistances(coords: Coordinate[]): number[] {
+  const R = 6371000;
+  const dists = [0];
+  for (let i = 1; i < coords.length; i++) {
+    const a = coords[i - 1];
+    const b = coords[i];
+    const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+    const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+    const sinLat = Math.sin(dLat / 2);
+    const sinLng = Math.sin(dLng / 2);
+    const h =
+      sinLat * sinLat +
+      Math.cos((a.lat * Math.PI) / 180) *
+        Math.cos((b.lat * Math.PI) / 180) *
+        sinLng *
+        sinLng;
+    dists.push(dists[i - 1] + R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+  }
+  return dists;
+}
+
+/** Pick a "nice" round step value for axis ticks. */
+export function niceStep(range: number, maxTicks: number): number {
+  const rough = range / maxTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const res = rough / mag;
+  let nice: number;
+  if (res <= 1) nice = 1;
+  else if (res <= 2) nice = 2;
+  else if (res <= 5) nice = 5;
+  else nice = 10;
+  return nice * mag || 1;
+}

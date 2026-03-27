@@ -1,0 +1,54 @@
+.section {
+  margin-top: 16px;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.wrap {
+  position: relative;
+  background: var(--c-bg);
+  border-radius: var(--radius);
+  padding: 12px 12px 8px 12px;
+  overflow: hidden;
+}
+
+.wrap canvas {
+  display: block;
+  width: 100%;
+}
+
+.tooltip {
+  position: absolute;
+  background: rgba(31, 41, 55, 0.92);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+  z-index: 5;
+  display: none;
+  line-height: 1.5;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--c-text-muted);
+}
+
+.stats span {
+  font-weight: 600;
+  color: var(--c-text);
+}

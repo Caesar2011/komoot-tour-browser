@@ -1,0 +1,69 @@
+.list {
+  display: grid;
+  gap: 6px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--c-bg);
+  border-radius: var(--radius);
+  transition: all var(--transition);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.card:hover {
+  background: var(--c-primary-light);
+  border-color: #c7d2fe;
+}
+
+.active {
+  background: var(--c-primary-light);
+  border-color: var(--c-primary);
+}
+
+.sportIcon {
+  font-size: 18px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--c-text-muted);
+  margin-top: 2px;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.badgeRecorded {
+  background: var(--c-badge-rec-bg);
+  color: var(--c-badge-rec-fg);
+}
+
+.badgePlanned {
+  background: var(--c-badge-plan-bg);
+  color: var(--c-badge-plan-fg);
+}

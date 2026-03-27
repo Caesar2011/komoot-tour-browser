@@ -1,0 +1,24 @@
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--c-text-muted);
+  flex-wrap: wrap;
+}
+
+.link {
+  color: var(--c-primary);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.sep {
+  color: var(--c-text-faint);
+}

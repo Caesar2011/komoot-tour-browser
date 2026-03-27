@@ -1,0 +1,11 @@
+.container {
+  flex: 1;
+  min-height: 200px;
+  position: relative;
+  z-index: 1;
+}
+
+.map {
+  height: 100%;
+  width: 100%;
+}
