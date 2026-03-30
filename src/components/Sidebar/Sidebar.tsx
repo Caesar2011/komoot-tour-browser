@@ -15,6 +15,7 @@ interface Props {
   onSelectFolder: (path: string) => void;
   onSelectTour: (tour: Tour) => void;
   onTogglePath: (path: string) => void;
+  onInlineRename?: (tour: Tour, newName: string) => Promise<void>;
 }
 
 export function Sidebar({
@@ -26,6 +27,7 @@ export function Sidebar({
   onSelectFolder,
   onSelectTour,
   onTogglePath,
+  onInlineRename,
 }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -59,6 +61,7 @@ export function Sidebar({
             onSelectFolder={onSelectFolder}
             onSelectTour={onSelectTour}
             onTogglePath={onTogglePath}
+            onInlineRename={onInlineRename}
           />
         )}
       </nav>

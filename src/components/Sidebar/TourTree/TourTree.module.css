@@ -19,6 +19,10 @@
   font-weight: 600;
 }
 
+.recorded {
+  font-style: italic;
+}
+
 .toggle {
   width: 18px;
   text-align: center;
@@ -57,4 +61,38 @@
 
 .children {
   overflow: hidden;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.statusDotRecorded {
+  background-color: var(--c-badge-rec-fg);
+}
+
+.statusDotPlanned {
+  background-color: var(--c-badge-plan-fg);
+}
+
+.inlineRenameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 4px;
+  border: 1px solid var(--c-primary);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.2);
+}
+
+.inlineError {
+  font-size: 11px;
+  color: var(--c-danger);
+  padding: 2px 0 4px;
 }

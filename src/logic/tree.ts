@@ -10,7 +10,7 @@ export function buildTree(tours: Tour[]): TreeNode {
 
   for (const tour of tours) {
     const parts = (tour.name || 'Unnamed')
-      .split('/')
+      .split(' / ')
       .map((s) => s.trim())
       .filter(Boolean);
 

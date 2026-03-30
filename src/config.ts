@@ -2,10 +2,10 @@ export const CONFIG = Object.freeze({
   API_BASE: 'https://api.komoot.de',
   API_WWW: 'https://www.komoot.com/api',
   PAGE_LIMIT: 500,
-  MAX_TRACKS_FULL_LOAD: 30,
-  TILE_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  TRACKS_EAGER_LIMIT: 30,
+  TILE_URL: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
   TILE_ATTR:
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
   COLORS: [
     '#4a6cf7',
     '#e74c3c',

@@ -27,6 +27,7 @@ export interface TreeNode {
 }
 
 export interface TrackEntry {
+  tourId: number;
   coords: Coordinate[];
   color: string;
   name: string;

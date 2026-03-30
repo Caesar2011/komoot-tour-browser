@@ -10,6 +10,13 @@ export class AuthExpiredError extends Error {
   }
 }
 
+export class ForbiddenError extends Error {
+  constructor(message = 'You do not have permission to modify this tour.') {
+    super(message);
+    this.name = 'ForbiddenError';
+  }
+}
+
 class ApiClient {
   private auth: AuthState | null = null;
   private coordsCache = new Map<number, Coordinate[]>();
@@ -27,8 +34,8 @@ class ApiClient {
     return { Authorization: basicAuthHeader(this.auth.userId, this.auth.token) };
   }
 
-  private async get(url: string): Promise<Response> {
-    const resp = await fetch(url, { headers: this.headers() });
+  private async get(url: string, signal?: AbortSignal): Promise<Response> {
+    const resp = await fetch(url, { headers: this.headers(), signal });
     if (resp.status === 401 || resp.status === 403) {
       this.clearAuth();
       throw new AuthExpiredError();
@@ -93,12 +100,13 @@ class ApiClient {
     return tours;
   }
 
-  async fetchCoordinates(tourId: number): Promise<Coordinate[] | null> {
+  async fetchCoordinates(tourId: number, signal?: AbortSignal): Promise<Coordinate[] | null> {
     const cached = this.coordsCache.get(tourId);
     if (cached) return cached;
     try {
       const resp = await this.get(
         `${CONFIG.API_BASE}/v007/tours/${tourId}/coordinates`,
+        signal,
       );
       const data = await resp.json();
       const coords: Coordinate[] = data.items ?? [];
@@ -106,9 +114,14 @@ class ApiClient {
       return coords;
     } catch (err) {
       if (err instanceof AuthExpiredError) throw err;
+      if (err instanceof DOMException && err.name === 'AbortError') return null;
       console.warn(`Coords failed for ${tourId}:`, err);
       return null;
     }
+  }
+
+  hasCachedCoordinates(tourId: number): boolean {
+    return this.coordsCache.has(tourId);
   }
 
   getCachedCoordinates(tourId: number): Coordinate[] | null {
@@ -126,9 +139,12 @@ class ApiClient {
       },
       body: JSON.stringify({ name: newName }),
     });
-    if (resp.status === 401 || resp.status === 403) {
+    if (resp.status === 401) {
       this.clearAuth();
       throw new AuthExpiredError();
+    }
+    if (resp.status === 403) {
+      throw new ForbiddenError('You cannot rename tours owned by other users.');
     }
     if (!resp.ok) {
       let msg = `HTTP ${resp.status}`;
