@@ -1,4 +1,5 @@
 import { useRef } from 'preact/hooks';
+import type { JSX } from 'preact';
 
 import type { Selection, Tour, TreeNode } from '../../types.ts';
 import { CONFIG } from '../../config.ts';

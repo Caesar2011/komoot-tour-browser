@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import type { JSX } from 'preact';
 
 import type { Tour } from '../../types.ts';
 

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from 'preact/hooks';
+import type { JSX } from 'preact';
 
 import type { Coordinate } from '../../../types.ts';
 import { CONFIG } from '../../../config.ts';
 import { cumulativeDistances, niceStep } from '../../../logic/utils.ts';
 
 import styles from './ElevationProfile.module.css';
-import type { JSX } from 'preact';
 
 interface Props {
   coords: Coordinate[];

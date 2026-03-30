@@ -1,4 +1,5 @@
 import { useRef, useState } from 'preact/hooks';
+import type { JSX } from 'preact';
 
 import styles from './LoginScreen.module.css';
 
