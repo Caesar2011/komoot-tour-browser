@@ -1,5 +1,4 @@
-import type { Coordinate } from '../types.ts';
-
+import type { Coordinate, SportType, Tour } from '../types.ts';
 import { SPORT_ICONS } from '../config.ts';
 
 export function encodeBase64(str: string): string {
@@ -10,8 +9,8 @@ export function basicAuthHeader(user: string, pass: string): string {
   return 'Basic ' + encodeBase64(user + ':' + pass);
 }
 
-export function sportIcon(sport: string): string {
-  return SPORT_ICONS[sport] || '🏃';
+export function sportIcon(sport: SportType): string {
+  return (SPORT_ICONS as Record<string, string>)[sport] || '🏃';
 }
 
 export function formatDist(m: number): string {
@@ -38,6 +37,11 @@ export function formatDate(iso: string | undefined): string {
   }
 }
 
+/** Sort tours by date descending (newest first). */
+export function sortToursByDate(tours: Tour[]): Tour[] {
+  return [...tours].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+}
+
 /** Haversine cumulative distance in meters for coordinate arrays. */
 export function cumulativeDistances(coords: Coordinate[]): number[] {
   const R = 6371000;
@@ -55,13 +59,16 @@ export function cumulativeDistances(coords: Coordinate[]): number[] {
         Math.cos((b.lat * Math.PI) / 180) *
         sinLng *
         sinLng;
-    dists.push(dists[i - 1] + R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+    dists.push(
+      dists[i - 1] + R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)),
+    );
   }
   return dists;
 }
 
 /** Pick a "nice" round step value for axis ticks. */
 export function niceStep(range: number, maxTicks: number): number {
+  if (!range || !maxTicks || !isFinite(range) || !isFinite(maxTicks)) return 1;
   const rough = range / maxTicks;
   const mag = Math.pow(10, Math.floor(Math.log10(rough)));
   const res = rough / mag;

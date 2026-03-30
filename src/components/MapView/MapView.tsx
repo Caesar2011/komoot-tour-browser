@@ -2,8 +2,8 @@ import L from 'leaflet';
 import { useEffect, useRef } from 'preact/hooks';
 
 import type { TrackEntry } from '../../types.ts';
-
 import { CONFIG } from '../../config.ts';
+
 import styles from './MapView.module.css';
 
 interface Props {
@@ -34,9 +34,11 @@ export function MapView({ tracks, onTrackClick }: Props) {
     markerLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
-    setTimeout(() => map.invalidateSize(), 100);
+    const resizeObs = new ResizeObserver(() => map.invalidateSize());
+    resizeObs.observe(containerRef.current);
 
     return () => {
+      resizeObs.disconnect();
       map.remove();
       mapRef.current = null;
     };
@@ -51,6 +53,7 @@ export function MapView({ tracks, onTrackClick }: Props) {
     trackLayer.clearLayers();
     markerLayer.clearLayers();
 
+    const { MAP_STYLES } = CONFIG;
     const bounds: L.LatLngTuple[] = [];
 
     for (const t of tracks) {
@@ -61,11 +64,11 @@ export function MapView({ tracks, onTrackClick }: Props) {
       if (t.coords.length === 1) {
         const p = t.coords[0];
         const m = L.circleMarker([p.lat, p.lng], {
-          radius: 7,
+          radius: MAP_STYLES.MARKER_RADIUS,
           color: '#fff',
           fillColor: t.color,
           fillOpacity: 0.9,
-          weight: 2,
+          weight: MAP_STYLES.MARKER_WEIGHT,
           interactive: true,
         });
         m.bindTooltip(t.name || '', { direction: 'top' });
@@ -76,8 +79,8 @@ export function MapView({ tracks, onTrackClick }: Props) {
         const ll: L.LatLngTuple[] = t.coords.map((c) => [c.lat, c.lng]);
         const poly = L.polyline(ll, {
           color: t.color,
-          weight: 3,
-          opacity: 0.85,
+          weight: MAP_STYLES.TRACK_WEIGHT,
+          opacity: MAP_STYLES.TRACK_OPACITY,
           interactive: true,
         });
         poly.bindTooltip(t.name || '', { sticky: true, direction: 'top' });
@@ -86,11 +89,11 @@ export function MapView({ tracks, onTrackClick }: Props) {
 
         const s = t.coords[0];
         const startMarker = L.circleMarker([s.lat, s.lng], {
-          radius: 5,
+          radius: MAP_STYLES.START_MARKER_RADIUS,
           color: '#fff',
           fillColor: t.color,
           fillOpacity: 1,
-          weight: 2,
+          weight: MAP_STYLES.START_MARKER_WEIGHT,
         });
         startMarker.on('click', handleClick);
         markerLayer.addLayer(startMarker);

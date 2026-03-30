@@ -1,4 +1,5 @@
 import type { Tour } from '../../../types.ts';
+import { sortToursByDate } from '../../../logic/utils.ts';
 
 import { TourCard } from './TourCard.tsx';
 import styles from './TourList.module.css';
@@ -10,9 +11,7 @@ interface Props {
 }
 
 export function TourList({ tours, activeTourId, onSelectTour }: Props) {
-  const sorted = [...tours].sort((a, b) =>
-    (b.date || '').localeCompare(a.date || ''),
-  );
+  const sorted = sortToursByDate(tours);
 
   return (
     <div class={styles.list}>

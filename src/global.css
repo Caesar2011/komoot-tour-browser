@@ -32,7 +32,12 @@
 html,
 body {
   height: 100%;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   background: var(--c-bg);
   color: var(--c-text);
 }
@@ -46,4 +51,38 @@ h1,
 h2,
 h3 {
   line-height: 1.2;
+}
+
+/* Shared form label style */
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Shared text input style */
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.form-input:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+}
+
+/* Shared inline error text */
+.form-error {
+  color: var(--c-danger);
+  font-size: 13px;
+  min-height: 1.2em;
 }

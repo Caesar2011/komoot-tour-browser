@@ -22,42 +22,14 @@
   margin-bottom: 16px;
 }
 
-.label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--c-text-muted);
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius);
-  font-size: 14px;
-  outline: none;
+.inputSpacing {
   margin-bottom: 8px;
-}
-
-.input:focus {
-  border-color: var(--c-primary);
-  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
 }
 
 .hint {
   font-size: 11px;
   color: var(--c-text-faint);
   margin-bottom: 16px;
-}
-
-.error {
-  color: var(--c-danger);
-  font-size: 12px;
-  margin-top: 8px;
-  min-height: 1em;
 }
 
 .actions {

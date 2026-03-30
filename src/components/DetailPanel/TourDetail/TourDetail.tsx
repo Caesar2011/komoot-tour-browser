@@ -1,5 +1,4 @@
 import type { Coordinate, Tour } from '../../../types.ts';
-
 import {
   formatDate,
   formatDist,
@@ -7,6 +6,7 @@ import {
   sportIcon,
 } from '../../../logic/utils.ts';
 import { ElevationProfile } from '../ElevationProfile/ElevationProfile.tsx';
+
 import styles from './TourDetail.module.css';
 
 interface Props {
@@ -21,7 +21,10 @@ export function TourDetail({ tour, coords, onRename }: Props) {
   const stats: [string, string][] = [
     ['Distance', formatDist(tour.distance)],
     ['Duration', formatDur(tour.duration)],
-    ['Elevation ↑', tour.elevation_up ? Math.round(tour.elevation_up) + ' m' : '–'],
+    [
+      'Elevation ↑',
+      tour.elevation_up ? Math.round(tour.elevation_up) + ' m' : '–',
+    ],
     [
       'Elevation ↓',
       tour.elevation_down ? Math.round(tour.elevation_down) + ' m' : '–',
@@ -38,8 +41,8 @@ export function TourDetail({ tour, coords, onRename }: Props) {
             {sportIcon(tour.sport)} {tour.name || 'Unnamed'}
           </div>
           <div class={styles.subtitle}>
-            {isRecorded ? '✅ Recorded' : '📋 Planned'} · {tour.sport || 'Unknown'} ·{' '}
-            {formatDate(tour.date)}
+            {isRecorded ? '✅ Recorded' : '📋 Planned'} ·{' '}
+            {tour.sport || 'Unknown'} · {formatDate(tour.date)}
           </div>
         </div>
         <button class={styles.renameBtn} onClick={() => onRename(tour)}>

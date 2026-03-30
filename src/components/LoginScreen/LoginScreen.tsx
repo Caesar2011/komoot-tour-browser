@@ -12,7 +12,7 @@ export function LoginScreen({ error: externalError, onLogin }: Props) {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (e: Event) => {
+  const handleSubmit = async (e: JSX.TargetedEvent<HTMLFormElement>) => {
     e.preventDefault();
     const email = emailRef.current?.value.trim() ?? '';
     const pw = passwordRef.current?.value ?? '';
@@ -31,24 +31,24 @@ export function LoginScreen({ error: externalError, onLogin }: Props) {
         <h1>🏔️ Komoot Browser</h1>
         <p class={styles.subtitle}>Sign in with your Komoot account</p>
         <form onSubmit={handleSubmit} autocomplete="on">
-          <label class={styles.label} for="inputEmail">
+          <label class="form-label" for="inputEmail">
             Email
           </label>
           <input
             ref={emailRef}
-            class={styles.input}
+            class={`form-input ${styles.inputSpacing}`}
             type="email"
             id="inputEmail"
             placeholder="your@email.com"
             autocomplete="username"
             required
           />
-          <label class={styles.label} for="inputPassword">
+          <label class="form-label" for="inputPassword">
             Password
           </label>
           <input
             ref={passwordRef}
-            class={styles.input}
+            class={`form-input ${styles.inputSpacing}`}
             type="password"
             id="inputPassword"
             placeholder="Password"
@@ -59,7 +59,9 @@ export function LoginScreen({ error: externalError, onLogin }: Props) {
             {submitting ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
-        <div class={styles.error}>{externalError ?? ''}</div>
+        <div class={`form-error ${styles.errorSpacing}`}>
+          {externalError ?? ''}
+        </div>
       </div>
     </div>
   );

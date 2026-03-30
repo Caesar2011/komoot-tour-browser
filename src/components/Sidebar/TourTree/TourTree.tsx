@@ -1,9 +1,10 @@
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type { Selection, Tour, TreeNode } from '../../../types.ts';
-
 import { sportIcon } from '../../../logic/utils.ts';
+import { sortToursByDate } from '../../../logic/utils.ts';
 import { countTours } from '../../../logic/tree.ts';
+
 import styles from './TourTree.module.css';
 
 interface Props {
@@ -29,7 +30,9 @@ export function TourTree({
   onTogglePath,
   onInlineRename,
 }: Props) {
-  const childKeys = [...node.children.keys()].sort((a, b) => a.localeCompare(b));
+  const childKeys = [...node.children.keys()].sort((a, b) =>
+    a.localeCompare(b),
+  );
   const hasKids = childKeys.length > 0 || node.tours.length > 0;
   const total = countTours(node);
   const isOpen = openPaths.has(node.path);
@@ -41,9 +44,7 @@ export function TourTree({
     onSelectFolder(node.path);
   };
 
-  const sorted = [...node.tours].sort((a, b) =>
-    (b.date || '').localeCompare(a.date || ''),
-  );
+  const sorted = sortToursByDate(node.tours);
 
   return (
     <>
@@ -100,19 +101,30 @@ interface ItemProps {
   onInlineRename?: (tour: Tour, newName: string) => Promise<void>;
 }
 
-function TourTreeItem({ tour, depth, selection, onSelectTour, onInlineRename }: ItemProps) {
+function TourTreeItem({
+  tour,
+  depth,
+  selection,
+  onSelectTour,
+  onInlineRename,
+}: ItemProps) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const editingRef = useRef(false);
 
-  const isTourSelected = selection?.type === 'tour' && selection.tourId === tour.id;
+  useEffect(() => {
+    editingRef.current = editing;
+  }, [editing]);
+
+  const isTourSelected =
+    selection?.type === 'tour' && selection.tourId === tour.id;
   const isRecorded = tour.type === 'tour_recorded';
 
   const enterEditMode = () => {
     if (!onInlineRename) return;
     setEditing(true);
     setError('');
-    // Focus after the input is rendered
     requestAnimationFrame(() => {
       if (inputRef.current) {
         inputRef.current.value = tour.name || '';
@@ -149,9 +161,11 @@ function TourTreeItem({ tour, depth, selection, onSelectTour, onInlineRename }: 
     }
   };
 
+  // Use ref to avoid stale closure: if editing was cancelled via Escape
+  // between the blur event and the timeout, we must not commit.
   const handleBlur = () => {
     setTimeout(() => {
-      if (editing) commitRename();
+      if (editingRef.current) commitRename();
     }, 150);
   };
 
@@ -167,7 +181,7 @@ function TourTreeItem({ tour, depth, selection, onSelectTour, onInlineRename }: 
         class={`${styles.label} ${isTourSelected ? styles.selected : ''} ${isRecorded ? styles.recorded : ''}`}
         style={{ paddingLeft: `${(depth + 1) * 16 + 10}px` }}
         title={tour.name}
-        onClick={(e) => {
+        onClick={(e: MouseEvent) => {
           e.stopPropagation();
           if (!editing) onSelectTour(tour);
         }}
@@ -182,8 +196,8 @@ function TourTreeItem({ tour, depth, selection, onSelectTour, onInlineRename }: 
             type="text"
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
-            onClick={(e) => e.stopPropagation()}
-            onDblClick={(e) => e.stopPropagation()}
+            onClick={(e: MouseEvent) => e.stopPropagation()}
+            onDblClick={(e: MouseEvent) => e.stopPropagation()}
           />
         ) : (
           <span class={styles.name}>

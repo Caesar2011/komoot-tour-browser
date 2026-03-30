@@ -1,6 +1,11 @@
 import type { Tour } from '../../../types.ts';
+import {
+  formatDate,
+  formatDist,
+  formatDur,
+  sportIcon,
+} from '../../../logic/utils.ts';
 
-import { formatDate, formatDist, formatDur, sportIcon } from '../../../logic/utils.ts';
 import styles from './TourList.module.css';
 
 interface Props {

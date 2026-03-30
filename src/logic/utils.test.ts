@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Coordinate } from '../types.ts';
+import type { Coordinate, Tour } from '../types.ts';
 
 import {
   cumulativeDistances,
@@ -8,8 +8,21 @@ import {
   formatDist,
   formatDur,
   niceStep,
+  sortToursByDate,
   sportIcon,
 } from './utils.ts';
+
+function makeTour(name: string, id: number, date?: string): Tour {
+  return {
+    id,
+    name,
+    sport: 'hike',
+    type: 'tour_recorded',
+    distance: 1000,
+    duration: 600,
+    date,
+  };
+}
 
 describe('sportIcon', () => {
   it('returns known icon', () => {
@@ -52,6 +65,24 @@ describe('formatDate', () => {
   });
 });
 
+describe('sortToursByDate', () => {
+  it('sorts tours by date descending', () => {
+    const tours = [
+      makeTour('A', 1, '2024-01-01'),
+      makeTour('C', 3, '2024-03-01'),
+      makeTour('B', 2, '2024-02-01'),
+    ];
+    const sorted = sortToursByDate(tours);
+    expect(sorted.map((t) => t.id)).toEqual([3, 2, 1]);
+  });
+
+  it('handles missing dates', () => {
+    const tours = [makeTour('A', 1), makeTour('B', 2, '2024-01-01')];
+    const sorted = sortToursByDate(tours);
+    expect(sorted[0].id).toBe(2);
+  });
+});
+
 describe('cumulativeDistances', () => {
   it('returns [0] for single point', () => {
     const coords: Coordinate[] = [{ lat: 48, lng: 12 }];
@@ -78,5 +109,17 @@ describe('niceStep', () => {
 
   it('returns 1 for small ranges', () => {
     expect(niceStep(4, 5)).toBe(1);
+  });
+
+  it('returns 1 for zero range', () => {
+    expect(niceStep(0, 5)).toBe(1);
+  });
+
+  it('returns 1 for zero maxTicks', () => {
+    expect(niceStep(100, 0)).toBe(1);
+  });
+
+  it('returns 1 for infinite range', () => {
+    expect(niceStep(Infinity, 5)).toBe(1);
   });
 });

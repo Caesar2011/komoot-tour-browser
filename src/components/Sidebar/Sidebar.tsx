@@ -1,8 +1,8 @@
 import { useRef } from 'preact/hooks';
 
 import type { Selection, Tour, TreeNode } from '../../types.ts';
-
 import { CONFIG } from '../../config.ts';
+
 import { TourTree } from './TourTree/TourTree.tsx';
 import styles from './Sidebar.module.css';
 
@@ -31,10 +31,13 @@ export function Sidebar({
 }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleInput = (e: Event) => {
-    const value = (e.target as HTMLInputElement).value;
+  const handleInput = (e: JSX.TargetedEvent<HTMLInputElement>) => {
+    const value = e.currentTarget.value;
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => onFilter(value), CONFIG.FILTER_DEBOUNCE_MS);
+    timerRef.current = setTimeout(
+      () => onFilter(value),
+      CONFIG.FILTER_DEBOUNCE_MS,
+    );
   };
 
   return (

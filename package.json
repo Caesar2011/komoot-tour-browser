@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint": "eslint src"
+    "lint": "prettier --write . && eslint --fix"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -26,6 +26,7 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.2",
     "jsdom": "^29.0.1",
+    "prettier": "^3.8.1",
     "terser": "^5.36.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",

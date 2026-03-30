@@ -1,4 +1,9 @@
-import type { Coordinate, FolderContext, Selection, Tour } from '../../types.ts';
+import type {
+  Coordinate,
+  FolderContext,
+  Selection,
+  Tour,
+} from '../../types.ts';
 
 import { Breadcrumb } from './Breadcrumb/Breadcrumb.tsx';
 import { TourList } from './TourList/TourList.tsx';
@@ -7,11 +12,10 @@ import styles from './DetailPanel.module.css';
 
 interface Props {
   selection: Selection | null;
-  folderPath?: string;
-  folderTours?: Tour[];
-  tour?: Tour | null;
-  coords?: Coordinate[] | null;
-  folderContext?: FolderContext | null;
+  folderTours: Tour[];
+  tour: Tour | null;
+  coords: Coordinate[] | null;
+  folderContext: FolderContext | null;
   onSelectFolder: (path: string) => void;
   onSelectTour: (tour: Tour) => void;
   onRename: (tour: Tour) => void;
@@ -19,7 +23,6 @@ interface Props {
 
 export function DetailPanel({
   selection,
-  folderPath,
   folderTours,
   tour,
   coords,
@@ -45,12 +48,12 @@ export function DetailPanel({
     return (
       <div class={styles.panel}>
         <div class={styles.content}>
-          <Breadcrumb path={folderPath ?? ''} onNavigate={onSelectFolder} />
+          <Breadcrumb path={selection.path} onNavigate={onSelectFolder} />
           <div class={styles.listHeader}>
-            📁 {folderPath || 'All Tours'} ({folderTours?.length ?? 0} tours)
+            📁 {selection.path || 'All Tours'} ({folderTours.length} tours)
           </div>
           <TourList
-            tours={folderTours ?? []}
+            tours={folderTours}
             activeTourId={null}
             onSelectTour={onSelectTour}
           />

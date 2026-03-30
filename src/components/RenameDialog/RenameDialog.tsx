@@ -41,7 +41,9 @@ export function RenameDialog({ tour, onSave, onClose }: Props) {
     try {
       await onSave(newName);
     } catch (e) {
-      setError('Rename failed: ' + (e instanceof Error ? e.message : String(e)));
+      setError(
+        'Rename failed: ' + (e instanceof Error ? e.message : String(e)),
+      );
     } finally {
       setSaving(false);
     }
@@ -55,7 +57,7 @@ export function RenameDialog({ tour, onSave, onClose }: Props) {
     if (e.key === 'Escape') onClose();
   };
 
-  const handleOverlayClick = (e: MouseEvent) => {
+  const handleOverlayClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
 
@@ -63,22 +65,22 @@ export function RenameDialog({ tour, onSave, onClose }: Props) {
     <div class={styles.overlay} onClick={handleOverlayClick}>
       <div class={styles.dialog}>
         <h3>✏️ Rename Tour</h3>
-        <label class={styles.label} for="renameInput">
+        <label class="form-label" for="renameInput">
           Tour Name (full path)
         </label>
         <input
           ref={inputRef}
-          class={styles.input}
+          class={`form-input ${styles.inputSpacing}`}
           type="text"
           id="renameInput"
           placeholder="Folder / Subfolder / Tour Name"
           onKeyDown={handleKeyDown}
         />
         <div class={styles.hint}>
-          Use <strong>/</strong> to organize into folders. The entire name including path
-          is editable.
+          Use <strong>/</strong> to organize into folders. The entire name
+          including path is editable.
         </div>
-        {error && <div class={styles.error}>{error}</div>}
+        {error && <div class="form-error">{error}</div>}
         <div class={styles.actions}>
           <button class={styles.cancelBtn} onClick={onClose}>
             Cancel
