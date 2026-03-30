@@ -5,6 +5,7 @@ import { CONFIG } from '../../../config.ts';
 import { cumulativeDistances, niceStep } from '../../../logic/utils.ts';
 
 import styles from './ElevationProfile.module.css';
+import type { JSX } from 'preact';
 
 interface Props {
   coords: Coordinate[];
