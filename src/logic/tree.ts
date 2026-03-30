@@ -33,7 +33,6 @@ export function buildTree(tours: Tour[]): TreeNode {
       node = node.children.get(seg)!;
     }
 
-    // Attach a leaf name for display in the tree
     const enriched: Tour = { ...tour, _leafName: parts[parts.length - 1] };
     node.tours.push(enriched);
   }

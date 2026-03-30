@@ -11,6 +11,18 @@ interface Props {
   onTrackClick?: (tourId: number) => void;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildTooltipContent(t: TrackEntry): string {
+  const name = escapeHtml(t.name || '');
+  if (t.coverImageUrl) {
+    return `<div style="text-align:center"><img src="${escapeHtml(t.coverImageUrl)}" style="width:${CONFIG.COVER_IMAGE_WIDTH}px;height:${CONFIG.COVER_IMAGE_HEIGHT}px;object-fit:cover;border-radius:4px;display:block;margin-bottom:4px" alt="" /><div style="font-size:12px;font-weight:600">${name}</div></div>`;
+  }
+  return name;
+}
+
 export function MapView({ tracks, onTrackClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -60,6 +72,11 @@ export function MapView({ tracks, onTrackClick }: Props) {
       if (!t.coords || t.coords.length === 0) continue;
 
       const handleClick = () => onTrackClick?.(t.tourId);
+      const tooltipContent = buildTooltipContent(t);
+      const tooltipOpts: L.TooltipOptions = {
+        direction: 'top',
+        ...(t.coverImageUrl ? { className: 'cover-tooltip' } : {}),
+      };
 
       if (t.coords.length === 1) {
         const p = t.coords[0];
@@ -71,7 +88,7 @@ export function MapView({ tracks, onTrackClick }: Props) {
           weight: MAP_STYLES.MARKER_WEIGHT,
           interactive: true,
         });
-        m.bindTooltip(t.name || '', { direction: 'top' });
+        m.bindTooltip(tooltipContent, tooltipOpts);
         m.on('click', handleClick);
         markerLayer.addLayer(m);
         bounds.push([p.lat, p.lng]);
@@ -83,7 +100,7 @@ export function MapView({ tracks, onTrackClick }: Props) {
           opacity: MAP_STYLES.TRACK_OPACITY,
           interactive: true,
         });
-        poly.bindTooltip(t.name || '', { sticky: true, direction: 'top' });
+        poly.bindTooltip(tooltipContent, { ...tooltipOpts, sticky: true });
         poly.on('click', handleClick);
         trackLayer.addLayer(poly);
 

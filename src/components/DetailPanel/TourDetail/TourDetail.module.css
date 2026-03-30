@@ -25,6 +25,36 @@
   margin-top: 4px;
 }
 
+.actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  transition: all var(--transition);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.actionBtn:hover {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -52,20 +82,109 @@
   margin-top: 4px;
 }
 
-.renameBtn {
-  padding: 4px 10px;
-  background: none;
+/* Inline edit row */
+.editRow {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.editField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--c-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.editValue {
+  font-size: 13px;
+  color: var(--c-text);
+}
+
+.inlineSelect {
+  padding: 3px 6px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  background: var(--c-surface);
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.inlineSelect:focus {
+  border-color: var(--c-primary);
+}
+
+.statusToggleGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.statusToggle {
+  padding: 3px 8px;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
   font-size: 11px;
   font-weight: 600;
+  background: var(--c-bg);
   color: var(--c-text-muted);
+  cursor: pointer;
   transition: all var(--transition);
-  flex-shrink: 0;
   white-space: nowrap;
 }
 
-.renameBtn:hover {
+.statusToggle:hover {
+  border-color: var(--c-primary);
+}
+
+.statusToggleActive {
+  background: var(--c-primary-light);
   border-color: var(--c-primary);
   color: var(--c-primary);
+}
+
+.patchError {
+  color: var(--c-danger);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* Sections */
+.section {
+  margin-top: 16px;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.imageGrid {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.coverImg {
+  width: 160px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  flex-shrink: 0;
 }

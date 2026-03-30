@@ -9,3 +9,9 @@
   height: 100%;
   width: 100%;
 }
+
+/* Override Leaflet tooltip for cover images */
+:global(.cover-tooltip) {
+  padding: 4px !important;
+  border-radius: 6px !important;
+}

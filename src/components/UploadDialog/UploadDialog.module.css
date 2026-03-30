@@ -1,0 +1,71 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  background: var(--c-surface);
+  border-radius: 12px;
+  padding: 28px;
+  width: 480px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.dialog h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.fileInput {
+  width: 100%;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.inputSpacing {
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.actions button {
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+}
+
+.cancelBtn {
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+.cancelBtn:hover {
+  background: var(--c-border);
+}
+
+.saveBtn {
+  background: var(--c-primary);
+  color: #fff;
+}
+
+.saveBtn:hover {
+  background: var(--c-primary-hover);
+}
+
+.saveBtn:disabled {
+  background: var(--c-text-faint);
+  cursor: not-allowed;
+}

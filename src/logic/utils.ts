@@ -1,5 +1,5 @@
-import type { Coordinate, SportType, Tour } from '../types.ts';
-import { SPORT_ICONS } from '../config.ts';
+import type { Coordinate, CoverImage, SportType, Tour } from '../types.ts';
+import { CONFIG, SPORT_ICONS } from '../config.ts';
 
 export function encodeBase64(str: string): string {
   return btoa(String.fromCodePoint(...new TextEncoder().encode(str)));
@@ -78,4 +78,41 @@ export function niceStep(range: number, maxTicks: number): number {
   else if (res <= 5) nice = 5;
   else nice = 10;
   return nice * mag || 1;
+}
+
+/** Resolve a templated cover image URL to a concrete URL. */
+export function resolveCoverImageUrl(
+  img: CoverImage,
+  width: number = CONFIG.COVER_IMAGE_WIDTH,
+  height: number = CONFIG.COVER_IMAGE_HEIGHT,
+): string {
+  if (!img.src) return '';
+  if (img.templated) {
+    return img.src
+      .replace('{width}', String(width))
+      .replace('{height}', String(height))
+      .replace('{crop}', 'true');
+  }
+  return img.src;
+}
+
+/** Trigger a file download in the browser. */
+export function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Detect file type from extension. */
+export function detectDataType(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'gpx') return 'gpx';
+  if (ext === 'fit') return 'fit';
+  if (ext === 'tcx') return 'tcx';
+  return 'gpx';
 }

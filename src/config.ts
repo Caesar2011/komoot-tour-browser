@@ -21,6 +21,73 @@ export const SPORT_ICONS = Object.freeze({
   climbing: '🧗',
 } as const);
 
+export const SPORT_LABELS: Record<string, string> = {
+  hike: 'Hiking',
+  hiking: 'Hiking',
+  mountaineering: 'Mountaineering',
+  touringbicycle: 'Touring Bicycle',
+  racebike: 'Race Bike',
+  gravel_cycling: 'Gravel Cycling',
+  mtb: 'Mountain Bike',
+  mtb_easy: 'MTB Easy',
+  mtb_advanced: 'MTB Advanced',
+  mtb_enduro: 'MTB Enduro',
+  e_touringbicycle: 'E-Touring',
+  e_mtb: 'E-MTB',
+  e_racebike: 'E-Race Bike',
+  jogging: 'Running',
+  running: 'Running',
+  nordic: 'Cross-Country Skiing',
+  nordic_walking: 'Nordic Walking',
+  skitour: 'Ski Tour',
+  snowshoe: 'Snowshoeing',
+  climbing: 'Climbing',
+};
+
+/** Colors keyed by the full `wt#` element value from the API. */
+export const WAY_TYPE_COLORS: Record<string, string> = {
+  'wt#street': '#e74c3c',
+  'wt#primary': '#c0392b',
+  'wt#minor_road': '#e67e22',
+  'wt#service': '#d35400',
+  'wt#cycleway': '#3498db',
+  'wt#way': '#f39c12',
+  'wt#path': '#2ecc71',
+  'wt#track': '#27ae60',
+  'wt#footway': '#1abc9c',
+  'wt#trail_d1': '#16a085',
+  'wt#trail_d2': '#9b59b6',
+  'wt#trail_d3': '#8e44ad',
+  'wt#stairs': '#7f8c8d',
+  'wt#ferry': '#00bcd4',
+};
+
+/** Colors keyed by the full `sb#` element value from the API. */
+export const SURFACE_COLORS: Record<string, string> = {
+  'sb#asphalt': '#555555',
+  'sb#paved': '#777777',
+  'sb#concrete': '#bdc3c7',
+  'sb#paving_stones': '#95a5a6',
+  'sb#cobblestone': '#7f8c8d',
+  'sb#gravel': '#c19a6b',
+  'sb#compacted': '#b8860b',
+  'sb#ground': '#8b6914',
+  'sb#unpaved': '#a0522d',
+  'sb#sand': '#f4d03f',
+  'sb#grass': '#27ae60',
+  'sb#wood': '#6d4c41',
+};
+
+/** Human-readable label for a wt# or sb# element key. */
+export function elementLabel(element: string): string {
+  // "wt#minor_road" → "Minor Road", "sb#paving_stones" → "Paving Stones"
+  const raw = element.includes('#') ? element.split('#')[1] : element;
+  return raw
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 export const CONFIG = Object.freeze({
   API_BASE: 'https://api.komoot.de',
   API_WWW: 'https://www.komoot.com/api',
@@ -56,4 +123,6 @@ export const CONFIG = Object.freeze({
     START_MARKER_RADIUS: 5,
     START_MARKER_WEIGHT: 2,
   },
+  COVER_IMAGE_WIDTH: 200,
+  COVER_IMAGE_HEIGHT: 120,
 });

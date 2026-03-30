@@ -7,11 +7,18 @@ import { Api } from './api.ts';
 export function buildPointEntry(
   tour: Tour,
   colorIdx: number,
+  coverImageUrl?: string,
 ): TrackEntry | null {
   const color = CONFIG.COLORS[colorIdx % CONFIG.COLORS.length];
   const cached = Api.getCachedCoordinates(tour.id);
   if (cached && cached.length > 0) {
-    return { tourId: tour.id, coords: cached, color, name: tour.name };
+    return {
+      tourId: tour.id,
+      coords: cached,
+      color,
+      name: tour.name,
+      coverImageUrl,
+    };
   }
   if (tour.start_point) {
     return {
@@ -19,6 +26,7 @@ export function buildPointEntry(
       coords: [{ lat: tour.start_point.lat, lng: tour.start_point.lng }],
       color,
       name: tour.name,
+      coverImageUrl,
     };
   }
   return null;

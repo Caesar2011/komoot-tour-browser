@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 
 import type { Selection, Tour, TreeNode } from '../../../types.ts';
 import { sportIcon } from '../../../logic/utils.ts';
-import { sortToursByDate } from '../../../logic/utils.ts';
 import { countTours } from '../../../logic/tree.ts';
 
 import styles from './TourTree.module.css';
@@ -44,52 +43,58 @@ export function TourTree({
     onSelectFolder(node.path);
   };
 
-  const sorted = sortToursByDate(node.tours);
-
   return (
-    <>
-      <div
-        class={`${styles.label} ${isFolderSelected ? styles.selected : ''}`}
-        style={{ paddingLeft: `${depth * 16 + 10}px` }}
-        onClick={handleClick}
+    <ul role={isRoot ? 'tree' : 'group'} class={styles.treeList}>
+      <li
+        role="treeitem"
+        aria-expanded={hasKids ? isOpen : undefined}
+        aria-selected={isFolderSelected}
+        aria-label={`${isRoot ? 'All Tours' : node.name}, ${total} tours`}
       >
-        <span class={`${styles.toggle} ${isOpen ? styles.open : ''}`}>
-          {hasKids ? '▶' : ''}
-        </span>
-        <span class={styles.icon}>{isRoot ? '🏠' : '📁'}</span>
-        <span class={styles.name}>{isRoot ? 'All Tours' : node.name}</span>
-        <span class={styles.count}>{total}</span>
-      </div>
-
-      {isOpen && (
-        <div class={styles.children}>
-          {childKeys.map((key) => (
-            <TourTree
-              key={key}
-              node={node.children.get(key)!}
-              depth={depth + 1}
-              selection={selection}
-              openPaths={openPaths}
-              onSelectFolder={onSelectFolder}
-              onSelectTour={onSelectTour}
-              onTogglePath={onTogglePath}
-              onInlineRename={onInlineRename}
-            />
-          ))}
-
-          {sorted.map((tour) => (
-            <TourTreeItem
-              key={tour.id}
-              tour={tour}
-              depth={depth}
-              selection={selection}
-              onSelectTour={onSelectTour}
-              onInlineRename={onInlineRename}
-            />
-          ))}
+        <div
+          class={`${styles.label} ${isFolderSelected ? styles.selected : ''}`}
+          style={{ paddingLeft: `${depth * 16 + 10}px` }}
+          onClick={handleClick}
+        >
+          <span class={`${styles.toggle} ${isOpen ? styles.open : ''}`}>
+            {hasKids ? '▶' : ''}
+          </span>
+          <span class={styles.icon}>{isRoot ? '🏠' : '📁'}</span>
+          <span class={styles.name}>{isRoot ? 'All Tours' : node.name}</span>
+          <span class={styles.count}>{total}</span>
         </div>
-      )}
-    </>
+
+        {isOpen && (
+          <ul role="group">
+            {childKeys.map((key) => (
+              <TourTree
+                key={key}
+                node={node.children.get(key)!}
+                depth={depth + 1}
+                selection={selection}
+                openPaths={openPaths}
+                onSelectFolder={onSelectFolder}
+                onSelectTour={onSelectTour}
+                onTogglePath={onTogglePath}
+                onInlineRename={onInlineRename}
+              />
+            ))}
+
+            {/* Preserve server-side sort order — no client re-sort */}
+            {node.tours.map((tour) => (
+              <TourTreeItem
+                key={tour.id}
+                tour={tour}
+                depth={depth}
+                selection={selection}
+                onSelectTour={onSelectTour}
+                onInlineRename={onInlineRename}
+              />
+            ))}
+          </ul>
+        )}
+      </li>
+    </ul>
   );
 }
 
@@ -161,8 +166,6 @@ function TourTreeItem({
     }
   };
 
-  // Use ref to avoid stale closure: if editing was cancelled via Escape
-  // between the blur event and the timeout, we must not commit.
   const handleBlur = () => {
     setTimeout(() => {
       if (editingRef.current) commitRename();
@@ -176,7 +179,11 @@ function TourTreeItem({
   };
 
   return (
-    <div>
+    <li
+      role="treeitem"
+      aria-selected={isTourSelected}
+      aria-label={`${tour._leafName || tour.name || 'Unnamed'}, ${tour.sport}, ${isRecorded ? 'recorded' : 'planned'}`}
+    >
       <div
         class={`${styles.label} ${isTourSelected ? styles.selected : ''} ${isRecorded ? styles.recorded : ''}`}
         style={{ paddingLeft: `${(depth + 1) * 16 + 10}px` }}
@@ -194,6 +201,7 @@ function TourTreeItem({
             ref={inputRef}
             class={styles.inlineRenameInput}
             type="text"
+            aria-label="Rename tour"
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             onClick={(e: MouseEvent) => e.stopPropagation()}
@@ -217,6 +225,6 @@ function TourTreeItem({
           {error}
         </div>
       )}
-    </div>
+    </li>
   );
 }

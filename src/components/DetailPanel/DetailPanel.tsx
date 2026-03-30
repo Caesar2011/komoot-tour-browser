@@ -1,8 +1,13 @@
 import type {
   Coordinate,
+  CoverImage,
   FolderContext,
   Selection,
+  SurfaceSegment,
+  TimelineEntry,
   Tour,
+  TourStatus,
+  WayTypeSegment,
 } from '../../types.ts';
 
 import { Breadcrumb } from './Breadcrumb/Breadcrumb.tsx';
@@ -16,9 +21,19 @@ interface Props {
   tour: Tour | null;
   coords: Coordinate[] | null;
   folderContext: FolderContext | null;
+  timeline: TimelineEntry[];
+  coverImages: CoverImage[];
+  wayTypes: WayTypeSegment[];
+  surfaces: SurfaceSegment[];
   onSelectFolder: (path: string) => void;
   onSelectTour: (tour: Tour) => void;
   onRename: (tour: Tour) => void;
+  onPatchTour: (
+    tourId: number,
+    fields: Partial<{ sport: string; status: TourStatus }>,
+  ) => Promise<void>;
+  onDownloadGpx: (tourId: number, name: string) => Promise<void>;
+  onDownloadFit: (tourId: number, name: string) => Promise<void>;
 }
 
 export function DetailPanel({
@@ -27,9 +42,16 @@ export function DetailPanel({
   tour,
   coords,
   folderContext,
+  timeline,
+  coverImages,
+  wayTypes,
+  surfaces,
   onSelectFolder,
   onSelectTour,
   onRename,
+  onPatchTour,
+  onDownloadGpx,
+  onDownloadFit,
 }: Props) {
   if (!selection) {
     return (
@@ -62,7 +84,6 @@ export function DetailPanel({
     );
   }
 
-  // selection.type === 'tour'
   return (
     <div class={styles.panel}>
       <div class={styles.content}>
@@ -80,7 +101,18 @@ export function DetailPanel({
           </>
         )}
         {tour && (
-          <TourDetail tour={tour} coords={coords ?? null} onRename={onRename} />
+          <TourDetail
+            tour={tour}
+            coords={coords ?? null}
+            timeline={timeline}
+            coverImages={coverImages}
+            wayTypes={wayTypes}
+            surfaces={surfaces}
+            onRename={onRename}
+            onPatchTour={onPatchTour}
+            onDownloadGpx={onDownloadGpx}
+            onDownloadFit={onDownloadFit}
+          />
         )}
       </div>
     </div>
