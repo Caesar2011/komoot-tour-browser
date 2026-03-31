@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
-
-import type { Selection, Tour, TreeNode } from '../../../types.ts';
+import type { Selection, SidebarItem, Tour, TreeNode } from '../../../types.ts';
 import { sportIcon } from '../../../logic/utils.ts';
 import { countTours } from '../../../logic/tree.ts';
 
@@ -12,10 +10,11 @@ interface Props {
   isRoot?: boolean;
   selection: Selection | null;
   openPaths: Set<string>;
+  focusedItem: SidebarItem | null;
   onSelectFolder: (path: string) => void;
   onSelectTour: (tour: Tour) => void;
   onTogglePath: (path: string) => void;
-  onInlineRename?: (tour: Tour, newName: string) => Promise<void>;
+  onContextMenu: (e: MouseEvent, item: SidebarItem) => void;
 }
 
 export function TourTree({
@@ -24,10 +23,11 @@ export function TourTree({
   isRoot = false,
   selection,
   openPaths,
+  focusedItem,
   onSelectFolder,
   onSelectTour,
   onTogglePath,
-  onInlineRename,
+  onContextMenu,
 }: Props) {
   const childKeys = [...node.children.keys()].sort((a, b) =>
     a.localeCompare(b),
@@ -37,10 +37,16 @@ export function TourTree({
   const isOpen = openPaths.has(node.path);
   const isFolderSelected =
     selection?.type === 'folder' && selection.path === node.path;
+  const isFocused =
+    focusedItem?.type === 'folder' && focusedItem.path === node.path;
 
   const handleClick = () => {
     if (hasKids) onTogglePath(node.path);
     onSelectFolder(node.path);
+  };
+
+  const handleRightClick = (e: MouseEvent) => {
+    onContextMenu(e, { type: 'folder', path: node.path, depth });
   };
 
   return (
@@ -52,9 +58,11 @@ export function TourTree({
         aria-label={`${isRoot ? 'All Tours' : node.name}, ${total} tours`}
       >
         <div
-          class={`${styles.label} ${isFolderSelected ? styles.selected : ''}`}
+          class={`${styles.label} ${isFolderSelected ? styles.selected : ''} ${isFocused ? styles.focused : ''}`}
           style={{ paddingLeft: `${depth * 16 + 10}px` }}
+          data-sidebar-index
           onClick={handleClick}
+          onContextMenu={handleRightClick}
         >
           <span class={`${styles.toggle} ${isOpen ? styles.open : ''}`}>
             {hasKids ? '▶' : ''}
@@ -73,22 +81,24 @@ export function TourTree({
                 depth={depth + 1}
                 selection={selection}
                 openPaths={openPaths}
+                focusedItem={focusedItem}
                 onSelectFolder={onSelectFolder}
                 onSelectTour={onSelectTour}
                 onTogglePath={onTogglePath}
-                onInlineRename={onInlineRename}
+                onContextMenu={onContextMenu}
               />
             ))}
 
-            {/* Preserve server-side sort order — no client re-sort */}
             {node.tours.map((tour) => (
               <TourTreeItem
                 key={tour.id}
                 tour={tour}
                 depth={depth}
+                folderPath={node.path}
                 selection={selection}
+                focusedItem={focusedItem}
                 onSelectTour={onSelectTour}
-                onInlineRename={onInlineRename}
+                onContextMenu={onContextMenu}
               />
             ))}
           </ul>
@@ -98,84 +108,46 @@ export function TourTree({
   );
 }
 
+function statusEmoji(status?: string): string {
+  switch (status) {
+    case 'private':
+      return '🔒';
+    case 'friends':
+      return '👥';
+    case 'public':
+      return '🌍';
+    default:
+      return '';
+  }
+}
+
 interface ItemProps {
   tour: Tour;
   depth: number;
+  folderPath: string;
   selection: Selection | null;
+  focusedItem: SidebarItem | null;
   onSelectTour: (tour: Tour) => void;
-  onInlineRename?: (tour: Tour, newName: string) => Promise<void>;
+  onContextMenu: (e: MouseEvent, item: SidebarItem) => void;
 }
 
 function TourTreeItem({
   tour,
   depth,
+  folderPath,
   selection,
+  focusedItem,
   onSelectTour,
-  onInlineRename,
+  onContextMenu,
 }: ItemProps) {
-  const [editing, setEditing] = useState(false);
-  const [error, setError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const editingRef = useRef(false);
-
-  useEffect(() => {
-    editingRef.current = editing;
-  }, [editing]);
-
   const isTourSelected =
     selection?.type === 'tour' && selection.tourId === tour.id;
   const isRecorded = tour.type === 'tour_recorded';
+  const isFocused =
+    focusedItem?.type === 'tour' && focusedItem.tour?.id === tour.id;
 
-  const enterEditMode = () => {
-    if (!onInlineRename) return;
-    setEditing(true);
-    setError('');
-    requestAnimationFrame(() => {
-      if (inputRef.current) {
-        inputRef.current.value = tour.name || '';
-        inputRef.current.focus();
-        inputRef.current.select();
-      }
-    });
-  };
-
-  const commitRename = async () => {
-    const newName = inputRef.current?.value.trim() ?? '';
-    if (!newName || newName === tour.name) {
-      setEditing(false);
-      setError('');
-      return;
-    }
-    try {
-      setError('');
-      await onInlineRename!(tour, newName);
-      setEditing(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitRename();
-    }
-    if (e.key === 'Escape') {
-      setEditing(false);
-      setError('');
-    }
-  };
-
-  const handleBlur = () => {
-    setTimeout(() => {
-      if (editingRef.current) commitRename();
-    }, 150);
-  };
-
-  const handleDblClick = (e: MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    enterEditMode();
+  const handleRightClick = (e: MouseEvent) => {
+    onContextMenu(e, { type: 'tour', path: folderPath, tour, depth: depth + 1 });
   };
 
   return (
@@ -185,46 +157,25 @@ function TourTreeItem({
       aria-label={`${tour._leafName || tour.name || 'Unnamed'}, ${tour.sport}, ${isRecorded ? 'recorded' : 'planned'}`}
     >
       <div
-        class={`${styles.label} ${isTourSelected ? styles.selected : ''} ${isRecorded ? styles.recorded : ''}`}
+        class={`${styles.label} ${isTourSelected ? styles.selected : ''} ${isRecorded ? styles.recorded : ''} ${isFocused ? styles.focused : ''}`}
         style={{ paddingLeft: `${(depth + 1) * 16 + 10}px` }}
         title={tour.name}
+        data-sidebar-index
         onClick={(e: MouseEvent) => {
           e.stopPropagation();
-          if (!editing) onSelectTour(tour);
+          onSelectTour(tour);
         }}
-        onDblClick={handleDblClick}
+        onContextMenu={handleRightClick}
       >
         <span class={styles.toggle} />
         <span class={styles.icon}>{sportIcon(tour.sport)}</span>
-        {editing ? (
-          <input
-            ref={inputRef}
-            class={styles.inlineRenameInput}
-            type="text"
-            aria-label="Rename tour"
-            onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
-            onClick={(e: MouseEvent) => e.stopPropagation()}
-            onDblClick={(e: MouseEvent) => e.stopPropagation()}
-          />
-        ) : (
-          <span class={styles.name}>
-            {tour._leafName || tour.name || 'Unnamed'}
-          </span>
-        )}
-        <span
-          class={`${styles.statusDot} ${isRecorded ? styles.statusDotRecorded : styles.statusDotPlanned}`}
-          title={isRecorded ? 'Recorded' : 'Planned'}
-        />
+        <span class={styles.name}>
+          {tour._leafName || tour.name || 'Unnamed'}
+        </span>
+        <span class={styles.statusEmoji} title={tour.status ?? 'unknown'}>
+          {statusEmoji(tour.status)}
+        </span>
       </div>
-      {error && (
-        <div
-          class={styles.inlineError}
-          style={{ paddingLeft: `${(depth + 1) * 16 + 28}px` }}
-        >
-          {error}
-        </div>
-      )}
     </li>
   );
 }

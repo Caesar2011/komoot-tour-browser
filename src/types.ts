@@ -8,8 +8,8 @@ export type SportType = KnownSport | (string & {});
 export type SortField = 'date' | 'name' | 'distance' | 'elevation' | 'duration';
 export type SortDirection = 'asc' | 'desc';
 
-export interface ServerFilters {
-  type: 'tour_recorded' | 'tour_planned' | null;
+export interface Filters {
+  type: TourType | null;
   statusPublic: boolean;
   statusPrivate: boolean;
   statusFriends: boolean;
@@ -17,9 +17,10 @@ export interface ServerFilters {
   endDate: string;
   sortField: SortField;
   sortDirection: SortDirection;
+  nameQuery: string;
 }
 
-export const DEFAULT_FILTERS: ServerFilters = {
+export const DEFAULT_FILTERS: Filters = {
   type: null,
   statusPublic: false,
   statusPrivate: false,
@@ -28,6 +29,7 @@ export const DEFAULT_FILTERS: ServerFilters = {
   endDate: '',
   sortField: 'date',
   sortDirection: 'desc',
+  nameQuery: '',
 };
 
 export interface Coordinate {
@@ -171,4 +173,12 @@ export interface LoginApiResponse {
   user?: {
     displayname?: string;
   };
+}
+
+/** Represents a single sidebar item for keyboard navigation. */
+export interface SidebarItem {
+  type: 'folder' | 'tour';
+  path: string;
+  tour?: Tour;
+  depth: number;
 }

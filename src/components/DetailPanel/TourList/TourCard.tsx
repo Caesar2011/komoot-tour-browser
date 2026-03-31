@@ -17,10 +17,20 @@ interface Props {
 export function TourCard({ tour, active, onClick }: Props) {
   const isRecorded = tour.type === 'tour_recorded';
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
       class={`${styles.card} ${active ? styles.active : ''}`}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
     >
       <span class={styles.sportIcon}>{sportIcon(tour.sport)}</span>
       <div class={styles.info}>

@@ -6,26 +6,41 @@ import type { Tour } from '../../types.ts';
 import styles from './RenameDialog.module.css';
 
 interface Props {
-  tour: Tour | null;
+  /** Pass `tour` to rename a tour, or `folder` (path string) to rename a folder. */
+  tour?: Tour | null;
+  folder?: string | null;
   onSave: (newName: string) => Promise<void>;
   onClose: () => void;
 }
 
-export function RenameDialog({ tour, onSave, onClose }: Props) {
+export function RenameDialog({ tour, folder, onSave, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const isFolder = typeof folder === 'string';
+  const isTour = tour != null;
+  const isVisible = isFolder || isTour;
+
+  const initialValue = isFolder
+    ? folder.split('/').pop() || ''
+    : isTour
+      ? tour.name || ''
+      : '';
+
   useEffect(() => {
-    if (tour && inputRef.current) {
-      inputRef.current.value = tour.name || '';
-      inputRef.current.focus();
+    if (isVisible && inputRef.current) {
+      inputRef.current.value = initialValue;
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      });
     }
     setError('');
     setSaving(false);
-  }, [tour]);
+  }, [isVisible, initialValue]);
 
-  if (!tour) return null;
+  if (!isVisible) return null;
 
   const handleSave = async () => {
     const newName = inputRef.current?.value.trim() ?? '';
@@ -33,7 +48,7 @@ export function RenameDialog({ tour, onSave, onClose }: Props) {
       setError('Name cannot be empty.');
       return;
     }
-    if (newName === tour.name) {
+    if (newName === initialValue) {
       onClose();
       return;
     }
@@ -62,31 +77,35 @@ export function RenameDialog({ tour, onSave, onClose }: Props) {
     if (e.target === e.currentTarget) onClose();
   };
 
+  const title = isFolder ? '✏️ Rename Folder' : '✏️ Rename Tour';
+  const hint = isFolder
+    ? 'All tours inside this folder will be renamed accordingly.'
+    : 'Use / to organize into folders. The entire name including path is editable.';
+
   return (
     <div class={styles.overlay} onClick={handleOverlayClick}>
       <div class={styles.dialog}>
-        <h3>✏️ Rename Tour</h3>
+        <h3>{title}</h3>
         <label class="form-label" for="renameInput">
-          Tour Name (full path)
+          {isFolder ? 'Folder Name' : 'Tour Name (full path)'}
         </label>
         <input
           ref={inputRef}
           class={`form-input ${styles.inputSpacing}`}
           type="text"
           id="renameInput"
-          placeholder="Folder / Subfolder / Tour Name"
+          placeholder={isFolder ? 'New folder name' : 'Folder / Subfolder / Tour Name'}
           onKeyDown={handleKeyDown}
         />
         <div class={styles.hint}>
-          Use <strong>/</strong> to organize into folders. The entire name
-          including path is editable.
+          {hint}
         </div>
         {error && <div class="form-error">{error}</div>}
         <div class={styles.actions}>
-          <button class={styles.cancelBtn} onClick={onClose}>
+          <button class={styles.cancelBtn} onClick={onClose} tabIndex={0}>
             Cancel
           </button>
-          <button class={styles.saveBtn} onClick={handleSave} disabled={saving}>
+          <button class={styles.saveBtn} onClick={handleSave} disabled={saving} tabIndex={0}>
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>

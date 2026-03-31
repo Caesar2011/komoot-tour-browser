@@ -1,20 +1,16 @@
 import type { JSX } from 'preact';
 
-import type {
-  ServerFilters,
-  SortDirection,
-  SortField,
-} from '../../../types.ts';
+import type { Filters, SortDirection, SortField } from '../../../types.ts';
 
 import styles from './FilterPanel.module.css';
 
 interface Props {
-  filters: ServerFilters;
-  onChange: (filters: ServerFilters) => void;
+  filters: Filters;
+  onChange: (filters: Filters) => void;
 }
 
 export function FilterPanel({ filters, onChange }: Props) {
-  const update = (partial: Partial<ServerFilters>) => {
+  const update = (partial: Partial<Filters>) => {
     onChange({ ...filters, ...partial });
   };
 
@@ -56,15 +52,15 @@ export function FilterPanel({ filters, onChange }: Props) {
           </button>
         </div>
 
-        {/* Status toggles */}
+        {/* Status toggles — order matches tour detail: private, friends, public */}
         <div class={styles.row}>
           <span class={styles.label}>Status</span>
           <div class={styles.statusGroup}>
             <button
-              class={`${styles.statusBtn} ${filters.statusPublic ? styles.active : ''}`}
-              onClick={() => update({ statusPublic: !filters.statusPublic })}
+              class={`${styles.statusBtn} ${filters.statusPrivate ? styles.active : ''}`}
+              onClick={() => update({ statusPrivate: !filters.statusPrivate })}
             >
-              🌍
+              🔒
             </button>
             <button
               class={`${styles.statusBtn} ${filters.statusFriends ? styles.active : ''}`}
@@ -73,10 +69,10 @@ export function FilterPanel({ filters, onChange }: Props) {
               👥
             </button>
             <button
-              class={`${styles.statusBtn} ${filters.statusPrivate ? styles.active : ''}`}
-              onClick={() => update({ statusPrivate: !filters.statusPrivate })}
+              class={`${styles.statusBtn} ${filters.statusPublic ? styles.active : ''}`}
+              onClick={() => update({ statusPublic: !filters.statusPublic })}
             >
-              🔒
+              🌍
             </button>
           </div>
         </div>

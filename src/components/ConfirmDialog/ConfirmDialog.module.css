@@ -1,0 +1,77 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  background: var(--c-surface);
+  border-radius: 12px;
+  padding: 28px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.message {
+  font-size: 13px;
+  color: var(--c-text-muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.actions button {
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancelBtn {
+  background: var(--c-primary);
+  color: #fff;
+  border: none;
+  transition: background var(--transition);
+}
+
+.cancelBtn:hover {
+  background: var(--c-primary-hover);
+}
+
+.cancelBtn:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+.confirmBtn {
+  background: none;
+  color: var(--c-danger);
+  border: 1px solid var(--c-danger);
+  transition: all var(--transition);
+}
+
+.confirmBtn:hover {
+  background: var(--c-danger);
+  color: #fff;
+}
+
+.confirmBtn:focus-visible {
+  outline: 2px solid var(--c-danger);
+  outline-offset: 2px;
+}

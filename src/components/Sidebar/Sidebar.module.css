@@ -45,4 +45,9 @@
   padding: 6px 0;
   font-size: 13px;
   scrollbar-width: thin;
+  outline: none;
+}
+
+.tree:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(74, 108, 247, 0.2);
 }

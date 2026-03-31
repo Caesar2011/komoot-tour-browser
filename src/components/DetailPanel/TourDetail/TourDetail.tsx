@@ -18,6 +18,7 @@ import {
   sportIcon,
 } from '../../../logic/utils.ts';
 import { Api } from '../../../logic/api.ts';
+import { komootTourUrl } from '../../../logic/komoot.ts';
 import { ElevationProfile } from '../ElevationProfile/ElevationProfile.tsx';
 
 import styles from './TourDetail.module.css';
@@ -30,9 +31,13 @@ interface Props {
   wayTypes: WayTypeSegment[];
   surfaces: SurfaceSegment[];
   onRename: (tour: Tour) => void;
-  onPatchTour: (tourId: number, fields: Partial<{ sport: string; status: TourStatus }>) => Promise<void>;
+  onPatchTour: (
+    tourId: number,
+    fields: Partial<{ sport: string; status: TourStatus }>,
+  ) => Promise<void>;
   onDownloadGpx: (tourId: number, name: string) => Promise<void>;
   onDownloadFit: (tourId: number, name: string) => Promise<void>;
+  onDeleteTour: (tour: Tour) => void;
 }
 
 function isOwnTour(tour: Tour): boolean {
@@ -42,7 +47,13 @@ function isOwnTour(tour: Tour): boolean {
   return !creatorId || creatorId === userId;
 }
 
-/** Resolve a templated image src (used for both cover images and timeline covers). */
+function getTourOwner(tour: Tour): string {
+  if (tour._embedded?.creator?.display_name) return tour._embedded.creator.display_name;
+  if (tour._embedded?.creator?.username) return tour._embedded.creator.username;
+  return Api.displayName || Api.userId || '–';
+}
+
+/** Resolve a templated image src. */
 function resolveTemplatedSrc(
   src: string,
   templated?: boolean,
@@ -70,6 +81,7 @@ export function TourDetail({
   onPatchTour,
   onDownloadGpx,
   onDownloadFit,
+  onDeleteTour,
 }: Props) {
   const isRecorded = tour.type === 'tour_recorded';
   const owned = isOwnTour(tour);
@@ -132,19 +144,21 @@ export function TourDetail({
     }
   }
 
-  // Cover images from the dedicated endpoint
   const resolvedCovers = coverImages
     .slice(0, 6)
     .map((img) => resolveCoverImageUrl(img, 400, 240))
     .filter(Boolean);
 
-  // Timeline entries that have a cover image (the `cover` field on each item)
   const timelineImages = timeline
     .filter((e) => e.cover?.src)
     .slice(0, 12)
     .map((e) => ({
       src: resolveTemplatedSrc(e.cover!.src, e.cover!.templated, 300, 200),
     }));
+
+  const canEditSport = owned && isRecorded;
+  const sportLabel = SPORT_LABELS[tour.sport] || tour.sport;
+  const tourOwner = getTourOwner(tour);
 
   return (
     <>
@@ -154,18 +168,27 @@ export function TourDetail({
             {sportIcon(tour.sport)} {tour.name || 'Unnamed'}
           </div>
           <div class={styles.subtitle}>
-            {isRecorded ? '✅ Recorded' : '📋 Planned'} ·{' '}
-            {tour.sport || 'Unknown'} · {formatDate(tour.date)}
+            {isRecorded ? '✅ Recorded' : '📋 Planned'} · {tourOwner} · {formatDate(tour.date)}
           </div>
         </div>
         <div class={styles.actions}>
-          <button class={styles.actionBtn} onClick={() => onRename(tour)}>
+          <a
+            class={styles.komootLink}
+            href={komootTourUrl(tour.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open in Komoot"
+          >
+            🔗 Komoot
+          </a>
+          <button class={styles.actionBtn} onClick={() => onRename(tour)} tabIndex={0}>
             ✏️ Rename
           </button>
           <button
             class={styles.actionBtn}
             onClick={() => handleDownload('gpx')}
             disabled={downloading === 'gpx'}
+            tabIndex={0}
           >
             {downloading === 'gpx' ? '⏳' : '📥'} GPX
           </button>
@@ -173,8 +196,16 @@ export function TourDetail({
             class={styles.actionBtn}
             onClick={() => handleDownload('fit')}
             disabled={downloading === 'fit'}
+            tabIndex={0}
           >
             {downloading === 'fit' ? '⏳' : '📥'} FIT
+          </button>
+          <button
+            class={`${styles.actionBtn} ${styles.deleteBtn}`}
+            onClick={() => onDeleteTour(tour)}
+            tabIndex={0}
+          >
+            🗑️ Delete
           </button>
         </div>
       </div>
@@ -188,29 +219,30 @@ export function TourDetail({
         ))}
       </div>
 
-      {/* Inline sport and status editing */}
       <div class={styles.editRow}>
         <div class={styles.editField}>
           <span class={styles.editLabel}>Sport</span>
-          {owned ? (
-            <select
-              class={styles.inlineSelect}
-              value={tour.sport}
-              onChange={(e) =>
-                handleSportChange((e.target as HTMLSelectElement).value)
-              }
-            >
-              {!uniqueSports.some(([k]) => k === tour.sport) && (
-                <option value={tour.sport}>{tour.sport}</option>
-              )}
-              {uniqueSports.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
+          {canEditSport ? (
+            <div class={styles.styledSelectWrap}>
+              <select
+                class={styles.styledSelect}
+                value={tour.sport}
+                onChange={(e) =>
+                  handleSportChange((e.target as HTMLSelectElement).value)
+                }
+              >
+                {!uniqueSports.some(([k]) => k === tour.sport) && (
+                  <option value={tour.sport}>{sportLabel}</option>
+                )}
+                {uniqueSports.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : (
-            <span class={styles.editValue}>{SPORT_LABELS[tour.sport] || tour.sport}</span>
+            <span class={styles.editValue}>{sportLabel}</span>
           )}
         </div>
         <div class={styles.editField}>
@@ -223,8 +255,7 @@ export function TourDetail({
                   class={`${styles.statusToggle} ${tour.status === s ? styles.statusToggleActive : ''}`}
                   onClick={() => handleStatusChange(s)}
                 >
-                  {s === 'private' ? '🔒' : s === 'friends' ? '👥' : '🌍'}{' '}
-                  {s}
+                  {s === 'private' ? '🔒' : s === 'friends' ? '👥' : '🌍'} {s}
                 </button>
               ))}
             </div>
@@ -236,7 +267,6 @@ export function TourDetail({
 
       {patchError && <div class={styles.patchError}>{patchError}</div>}
 
-      {/* Cover images */}
       {resolvedCovers.length > 0 && (
         <div class={styles.section}>
           <div class={styles.sectionTitle}>Cover Images</div>
@@ -254,7 +284,6 @@ export function TourDetail({
         </div>
       )}
 
-      {/* Timeline images */}
       {timelineImages.length > 0 && (
         <div class={styles.section}>
           <div class={styles.sectionTitle}>Timeline</div>

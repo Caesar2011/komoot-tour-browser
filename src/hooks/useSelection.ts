@@ -17,7 +17,12 @@ import { Api, AuthExpiredError } from '../logic/api.ts';
 import { collectTours, findNode } from '../logic/tree.ts';
 import { buildPointEntry } from '../logic/tracks.ts';
 import { resolveCoverImageUrl } from '../logic/utils.ts';
-import { clearHash, parseHash, setFolderHash, setTourHash } from '../logic/router.ts';
+import {
+  clearHash,
+  parseHash,
+  setFolderHash,
+  setTourHash,
+} from '../logic/router.ts';
 
 export function useSelection(
   tree: TreeNode | null,
@@ -65,7 +70,6 @@ export function useSelection(
       try {
         const eagerBatch = withPts.slice(0, CONFIG.TRACKS_EAGER_LIMIT);
 
-        // Fetch coordinates and cover images in parallel for tooltip display
         const [coordResults, coverResults] = await Promise.all([
           Promise.allSettled(
             eagerBatch.map((t) => Api.fetchCoordinates(t.id, signal)),
@@ -83,7 +87,6 @@ export function useSelection(
           const t = eagerBatch[i];
           const c = CONFIG.COLORS[i % CONFIG.COLORS.length];
 
-          // Resolve first cover image URL for map tooltip
           let coverUrl: string | undefined;
           const coverResult = coverResults[i];
           if (
@@ -155,7 +158,6 @@ export function useSelection(
         setDetailWayTypes(wayTypes);
         setDetailSurfaces(surfaces);
 
-        // Build the single-tour track entry with cover image for map tooltip
         let coverUrl: string | undefined;
         if (coverImages.length > 0) {
           coverUrl = resolveCoverImageUrl(coverImages[0]);
@@ -272,6 +274,24 @@ export function useSelection(
     });
   }, []);
 
+  const openPath = useCallback((path: string) => {
+    setOpenPaths((prev) => {
+      if (prev.has(path)) return prev;
+      const next = new Set(prev);
+      next.add(path);
+      return next;
+    });
+  }, []);
+
+  const closePath = useCallback((path: string) => {
+    setOpenPaths((prev) => {
+      if (!prev.has(path)) return prev;
+      const next = new Set(prev);
+      next.delete(path);
+      return next;
+    });
+  }, []);
+
   const updateDetailTour = useCallback(
     (tourId: number, updates: Partial<Tour>) => {
       setDetailTour((prev) =>
@@ -280,6 +300,19 @@ export function useSelection(
     },
     [],
   );
+
+  const clearDetail = useCallback(() => {
+    setDetailTour(null);
+    setDetailCoords(null);
+    setDetailFolderContext(null);
+    setDetailTimeline([]);
+    setDetailCoverImages([]);
+    setDetailWayTypes([]);
+    setDetailSurfaces([]);
+    setTracks([]);
+    setSelection(null);
+    clearHash();
+  }, []);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
@@ -336,6 +369,7 @@ export function useSelection(
 
   return {
     selection,
+    setSelection,
     openPaths,
     tracks,
     loading,
@@ -353,7 +387,10 @@ export function useSelection(
     handleSelectTourFromTree,
     handleTrackClick,
     handleTogglePath,
+    openPath,
+    closePath,
     updateDetailTour,
+    clearDetail,
     reset,
   } as const;
 }

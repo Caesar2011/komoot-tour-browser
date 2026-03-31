@@ -1,4 +1,4 @@
-import { useCallback } from 'preact/hooks';
+import { useCallback, useState } from 'preact/hooks';
 
 import type { Tour, TourStatus } from '../types.ts';
 import { useAuth } from '../hooks/useAuth.ts';
@@ -16,6 +16,7 @@ import { MapView } from './MapView/MapView.tsx';
 import { DetailPanel } from './DetailPanel/DetailPanel.tsx';
 import { RenameDialog } from './RenameDialog/RenameDialog.tsx';
 import { UploadDialog } from './UploadDialog/UploadDialog.tsx';
+import { ConfirmDialog } from './ConfirmDialog/ConfirmDialog.tsx';
 
 export function App() {
   const auth = useAuth();
@@ -23,6 +24,9 @@ export function App() {
   const sel = useSelection(tours.tree, tours.allTours, auth.handleAuthError);
   const rename = useRename(tours.applyTourUpdate, sel.updateDetailTour);
   const upload = useUpload(tours.addTour);
+
+  const [deletingTour, setDeletingTour] = useState<Tour | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleLogout = useCallback(() => {
     sel.reset();
@@ -39,9 +43,7 @@ export function App() {
         tours.applyTourUpdate(tourId, fields as Partial<Tour>);
         sel.updateDetailTour(tourId, fields as Partial<Tour>);
       } catch (e) {
-        if (e instanceof ForbiddenError) {
-          throw e;
-        }
+        if (e instanceof ForbiddenError) throw e;
         throw e;
       }
     },
@@ -66,6 +68,34 @@ export function App() {
       triggerDownload(blob, `${safeName}.fit`);
     },
     [],
+  );
+
+  const handleDeleteTour = useCallback((tour: Tour) => {
+    setDeletingTour(tour);
+    setDeleteError('');
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deletingTour) return;
+    try {
+      await Api.deleteTour(deletingTour.id);
+      tours.removeTour(deletingTour.id);
+      // If we were viewing this tour, clear the detail
+      if (sel.detailTour?.id === deletingTour.id) {
+        sel.clearDetail();
+      }
+      setDeletingTour(null);
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+    }
+  }, [deletingTour, tours, sel]);
+
+  const handleFolderRenameSave = useCallback(
+    async (newFolderName: string) => {
+      if (!rename.renamingFolder || !tours.tree) return;
+      await rename.handleFolderRename(rename.renamingFolder, newFolderName, tours.tree);
+    },
+    [rename, tours.tree],
   );
 
   const isLoading = tours.loading || sel.loading;
@@ -98,12 +128,15 @@ export function App() {
             selection={sel.selection}
             openPaths={sel.openPaths}
             filters={tours.filters}
-            onFilter={tours.handleFilter}
-            onFiltersChange={tours.handleServerFiltersChange}
+            onFiltersChange={tours.handleFiltersChange}
             onSelectFolder={sel.handleSelectFolder}
             onSelectTour={sel.handleSelectTourFromTree}
             onTogglePath={sel.handleTogglePath}
-            onInlineRename={rename.handleInlineRename}
+            onOpenPath={sel.openPath}
+            onClosePath={sel.closePath}
+            onRenameTour={rename.setRenamingTour}
+            onRenameFolder={rename.setRenamingFolder}
+            onDeleteTour={handleDeleteTour}
           />
           <div
             style={{
@@ -130,6 +163,7 @@ export function App() {
               onPatchTour={handlePatchTour}
               onDownloadGpx={handleDownloadGpx}
               onDownloadFit={handleDownloadFit}
+              onDeleteTour={handleDeleteTour}
             />
           </div>
         </div>
@@ -155,11 +189,33 @@ export function App() {
           {tours.error}
         </div>
       )}
-      <RenameDialog
-        tour={rename.renamingTour}
-        onSave={rename.handleRenameSave}
-        onClose={() => rename.setRenamingTour(null)}
-      />
+      {/* Tour rename dialog */}
+      {rename.renamingTour && (
+        <RenameDialog
+          tour={rename.renamingTour}
+          onSave={rename.handleRenameSave}
+          onClose={() => rename.setRenamingTour(null)}
+        />
+      )}
+      {/* Folder rename dialog */}
+      {rename.renamingFolder !== null && (
+        <RenameDialog
+          folder={rename.renamingFolder}
+          onSave={handleFolderRenameSave}
+          onClose={() => rename.setRenamingFolder(null)}
+        />
+      )}
+      {/* Delete confirmation dialog */}
+      {deletingTour && (
+        <ConfirmDialog
+          title="🗑️ Delete Tour"
+          message={`Are you sure you want to delete "${deletingTour.name || 'Unnamed'}"? This action cannot be undone.${deleteError ? '\n\nError: ' + deleteError : ''}`}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeletingTour(null)}
+        />
+      )}
       {upload.showUpload && (
         <UploadDialog
           uploading={upload.uploading}

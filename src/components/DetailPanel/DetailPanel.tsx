@@ -34,6 +34,7 @@ interface Props {
   ) => Promise<void>;
   onDownloadGpx: (tourId: number, name: string) => Promise<void>;
   onDownloadFit: (tourId: number, name: string) => Promise<void>;
+  onDeleteTour: (tour: Tour) => void;
 }
 
 export function DetailPanel({
@@ -52,10 +53,11 @@ export function DetailPanel({
   onPatchTour,
   onDownloadGpx,
   onDownloadFit,
+  onDeleteTour,
 }: Props) {
   if (!selection) {
     return (
-      <div class={styles.panel}>
+      <div class={styles.panel} tabIndex={0}>
         <div class={styles.content}>
           <div class={styles.empty}>
             <div class={styles.emptyIcon}>🗺️</div>
@@ -68,7 +70,7 @@ export function DetailPanel({
 
   if (selection.type === 'folder') {
     return (
-      <div class={styles.panel}>
+      <div class={styles.panel} tabIndex={0}>
         <div class={styles.content}>
           <Breadcrumb path={selection.path} onNavigate={onSelectFolder} />
           <div class={styles.listHeader}>
@@ -85,7 +87,7 @@ export function DetailPanel({
   }
 
   return (
-    <div class={styles.panel}>
+    <div class={styles.panel} tabIndex={0}>
       <div class={styles.content}>
         {folderContext && (
           <>
@@ -93,6 +95,14 @@ export function DetailPanel({
             <div class={styles.backLink}>
               <span
                 class={styles.backLinkText}
+                tabIndex={0}
+                role="button"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectFolder(folderContext.path);
+                  }
+                }}
                 onClick={() => onSelectFolder(folderContext.path)}
               >
                 ← Back to list
@@ -112,6 +122,7 @@ export function DetailPanel({
             onPatchTour={onPatchTour}
             onDownloadGpx={onDownloadGpx}
             onDownloadFit={onDownloadFit}
+            onDeleteTour={onDeleteTour}
           />
         )}
       </div>

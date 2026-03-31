@@ -1,4 +1,4 @@
-import type { Tour, TreeNode } from '../types.ts';
+import type { SidebarItem, Tour, TreeNode } from '../types.ts';
 
 export function buildTree(tours: Tour[]): TreeNode {
   const root: TreeNode = {
@@ -59,4 +59,36 @@ export function findNode(root: TreeNode, path: string): TreeNode | null {
     node = node.children.get(p)!;
   }
   return node;
+}
+
+/**
+ * Flatten the tree into an ordered list of sidebar items for keyboard navigation.
+ * Only includes items that are currently visible (i.e. parent folders are open).
+ */
+export function flattenTree(
+  node: TreeNode,
+  openPaths: Set<string>,
+  depth: number = 0,
+): SidebarItem[] {
+  const items: SidebarItem[] = [];
+
+  // The folder item itself
+  items.push({ type: 'folder', path: node.path, depth });
+
+  const isOpen = openPaths.has(node.path);
+  if (!isOpen) return items;
+
+  const childKeys = [...node.children.keys()].sort((a, b) =>
+    a.localeCompare(b),
+  );
+
+  for (const key of childKeys) {
+    items.push(...flattenTree(node.children.get(key)!, openPaths, depth + 1));
+  }
+
+  for (const tour of node.tours) {
+    items.push({ type: 'tour', path: node.path, tour, depth: depth + 1 });
+  }
+
+  return items;
 }

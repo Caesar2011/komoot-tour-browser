@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Tour } from '../types.ts';
 
-import { buildTree, collectTours, countTours, findNode } from './tree.ts';
+import { buildTree, collectTours, countTours, findNode, flattenTree } from './tree.ts';
 
 function makeTour(name: string, id = 1): Tour {
   return {
@@ -66,5 +66,50 @@ describe('findNode', () => {
   it('returns null for missing path', () => {
     const tree = buildTree([]);
     expect(findNode(tree, 'nonexistent')).toBeNull();
+  });
+});
+
+describe('flattenTree', () => {
+  it('returns only root when nothing is open', () => {
+    const tree = buildTree([makeTour('Folder / A', 1), makeTour('B', 2)]);
+    const items = flattenTree(tree, new Set());
+    expect(items).toHaveLength(1);
+    expect(items[0].type).toBe('folder');
+    expect(items[0].path).toBe('');
+  });
+
+  it('returns root + children when root is open', () => {
+    const tree = buildTree([makeTour('Folder / A', 1), makeTour('B', 2)]);
+    const items = flattenTree(tree, new Set(['']));
+    // root folder + "Folder" folder (closed) + tour B
+    expect(items.length).toBe(3);
+    expect(items[0].type).toBe('folder'); // root
+    expect(items[1].type).toBe('folder'); // Folder
+    expect(items[2].type).toBe('tour');   // B
+  });
+
+  it('includes nested items when subfolder is open', () => {
+    const tree = buildTree([makeTour('Folder / A', 1), makeTour('B', 2)]);
+    const items = flattenTree(tree, new Set(['', 'Folder']));
+    // root + Folder + tour A + tour B
+    expect(items.length).toBe(4);
+    expect(items[2].type).toBe('tour');
+    expect(items[2].tour!.id).toBe(1);
+  });
+
+  it('deeply nested items appear in correct order', () => {
+    const tree = buildTree([
+      makeTour('A / B / Tour1', 1),
+      makeTour('A / Tour2', 2),
+    ]);
+    const items = flattenTree(tree, new Set(['', 'A', 'A/B']));
+    const types = items.map((i) => (i.type === 'tour' ? `tour:${i.tour!.id}` : `folder:${i.path}`));
+    expect(types).toEqual([
+      'folder:',
+      'folder:A',
+      'folder:A/B',
+      'tour:1',
+      'tour:2',
+    ]);
   });
 });

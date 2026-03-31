@@ -4,7 +4,6 @@ import type {
   CoordinatesApiResponse,
   CoverImage,
   LoginApiResponse,
-  ServerFilters,
   SurfaceSegment,
   TimelineEntry,
   Tour,
@@ -13,6 +12,7 @@ import type {
   WayTypeSegment,
 } from '../types.ts';
 import { CONFIG } from '../config.ts';
+
 import { basicAuthHeader } from './utils.ts';
 
 export class AuthExpiredError extends Error {
@@ -36,19 +36,36 @@ export interface IApiClient {
   login(email: string, password: string): Promise<AuthState>;
   restoreAuth(): boolean;
   clearAuth(): void;
-  fetchAllTours(signal?: AbortSignal, filters?: ServerFilters): Promise<Tour[]>;
-  fetchCoordinates(tourId: number, signal?: AbortSignal): Promise<Coordinate[] | null>;
+  fetchAllTours(signal?: AbortSignal): Promise<Tour[]>;
+  fetchCoordinates(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<Coordinate[] | null>;
   hasCachedCoordinates(tourId: number): boolean;
   getCachedCoordinates(tourId: number): Coordinate[] | null;
   renameTour(tourId: number, newName: string): Promise<Tour>;
-  patchTour(tourId: number, fields: Partial<{ name: string; sport: string; status: TourStatus }>): Promise<Tour>;
-  uploadTour(file: File, dataType: string, options: { name?: string; sport?: string; status?: TourStatus }): Promise<Tour>;
+  patchTour(
+    tourId: number,
+    fields: Partial<{ name: string; sport: string; status: TourStatus }>,
+  ): Promise<Tour>;
+  uploadTour(
+    file: File,
+    dataType: string,
+    options: { name?: string; sport?: string; status?: TourStatus },
+  ): Promise<Tour>;
+  deleteTour(tourId: number): Promise<void>;
   downloadGpx(tourId: number): Promise<Blob>;
   downloadFit(tourId: number): Promise<Blob>;
   fetchTimeline(tourId: number, signal?: AbortSignal): Promise<TimelineEntry[]>;
   fetchCoverImages(tourId: number, signal?: AbortSignal): Promise<CoverImage[]>;
-  fetchWayTypes(tourId: number, signal?: AbortSignal): Promise<WayTypeSegment[]>;
-  fetchSurfaces(tourId: number, signal?: AbortSignal): Promise<SurfaceSegment[]>;
+  fetchWayTypes(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<WayTypeSegment[]>;
+  fetchSurfaces(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<SurfaceSegment[]>;
   resetCaches(): void;
 }
 
@@ -127,22 +144,11 @@ class ApiClient implements IApiClient {
     sessionStorage.removeItem('komoot_auth');
   }
 
-  async fetchAllTours(signal?: AbortSignal, filters?: ServerFilters): Promise<Tour[]> {
+  async fetchAllTours(signal?: AbortSignal): Promise<Tour[]> {
     const tours: Tour[] = [];
     let page = 0;
     for (;;) {
-      let url = `${CONFIG.API_BASE}/v007/users/${this.auth!.userId}/tours/?limit=${CONFIG.PAGE_LIMIT}&page=${page}`;
-      if (filters) {
-        if (filters.type) url += `&type=${filters.type}`;
-        if (filters.startDate) {
-          url += `&start_date=${encodeURIComponent(new Date(filters.startDate + 'T00:00:00.000Z').toISOString())}`;
-        }
-        if (filters.endDate) {
-          url += `&end_date=${encodeURIComponent(new Date(filters.endDate + 'T23:59:59.999Z').toISOString())}`;
-        }
-        if (filters.sortField) url += `&sort_field=${filters.sortField}`;
-        if (filters.sortDirection) url += `&sort_direction=${filters.sortDirection}`;
-      }
+      const url = `${CONFIG.API_BASE}/v007/users/${this.auth!.userId}/tours/?limit=${CONFIG.PAGE_LIMIT}&page=${page}`;
       const resp = await this.get(url, signal);
       const data: ToursApiResponse = await resp.json();
       const pageTours: Tour[] = data._embedded?.tours ?? [];
@@ -151,24 +157,13 @@ class ApiClient implements IApiClient {
       page++;
       if (page >= totalPages || pageTours.length === 0) break;
     }
-
-    // Status is NOT a server-side filter — always apply client-side
-    if (filters) {
-      const { statusPublic, statusPrivate, statusFriends } = filters;
-      const anyActive = statusPublic || statusPrivate || statusFriends;
-      if (anyActive) {
-        const allowed = new Set<string>();
-        if (statusPublic) allowed.add('public');
-        if (statusPrivate) allowed.add('private');
-        if (statusFriends) allowed.add('friends');
-        return tours.filter((t) => t.status && allowed.has(t.status));
-      }
-    }
-
     return tours;
   }
 
-  async fetchCoordinates(tourId: number, signal?: AbortSignal): Promise<Coordinate[] | null> {
+  async fetchCoordinates(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<Coordinate[] | null> {
     const cached = this.coordsCache.get(tourId);
     if (cached) return cached;
     try {
@@ -214,7 +209,9 @@ class ApiClient implements IApiClient {
       throw new AuthExpiredError();
     }
     if (resp.status === 403) {
-      throw new ForbiddenError('You do not have permission to modify this tour.');
+      throw new ForbiddenError(
+        'You do not have permission to modify this tour.',
+      );
     }
     if (!resp.ok) {
       let msg = `HTTP ${resp.status}`;
@@ -231,6 +228,29 @@ class ApiClient implements IApiClient {
 
   async renameTour(tourId: number, newName: string): Promise<Tour> {
     return this.patchTour(tourId, { name: newName });
+  }
+
+  async deleteTour(tourId: number): Promise<void> {
+    if (!this.isAuthenticated) throw new Error('Not authenticated');
+    const url = `${CONFIG.API_WWW}/v007/tours/${tourId}?hl=${CONFIG.LOCALE}`;
+    const resp = await fetch(url, {
+      method: 'DELETE',
+      headers: this.headers(),
+    });
+    if (resp.status === 401) {
+      this.clearAuth();
+      throw new AuthExpiredError();
+    }
+    if (resp.status === 403) {
+      throw new ForbiddenError(
+        'You do not have permission to delete this tour.',
+      );
+    }
+    if (!resp.ok && resp.status !== 204) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    this.coordsCache.delete(tourId);
+    this.coverImageCache.delete(tourId);
   }
 
   async uploadTour(
@@ -280,14 +300,16 @@ class ApiClient implements IApiClient {
     return resp.blob();
   }
 
-  async fetchTimeline(tourId: number, signal?: AbortSignal): Promise<TimelineEntry[]> {
+  async fetchTimeline(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<TimelineEntry[]> {
     try {
       const resp = await this.get(
         `${CONFIG.API_BASE}/v007/tours/${tourId}/timeline/`,
         signal,
       );
       const data = await resp.json();
-      // Response: { _embedded: { items: [...] }, page: {...} }
       return data._embedded?.items ?? [];
     } catch (err) {
       if (err instanceof AuthExpiredError) throw err;
@@ -295,7 +317,10 @@ class ApiClient implements IApiClient {
     }
   }
 
-  async fetchCoverImages(tourId: number, signal?: AbortSignal): Promise<CoverImage[]> {
+  async fetchCoverImages(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<CoverImage[]> {
     const cached = this.coverImageCache.get(tourId);
     if (cached) return cached;
     try {
@@ -304,7 +329,6 @@ class ApiClient implements IApiClient {
         signal,
       );
       const data = await resp.json();
-      // Response can be { _embedded: { items: [...] } } or { items: [...] }
       const images: CoverImage[] = data._embedded?.items ?? data.items ?? [];
       this.coverImageCache.set(tourId, images);
       return images;
@@ -314,28 +338,32 @@ class ApiClient implements IApiClient {
     }
   }
 
-  async fetchWayTypes(tourId: number, signal?: AbortSignal): Promise<WayTypeSegment[]> {
+  async fetchWayTypes(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<WayTypeSegment[]> {
     try {
       const resp = await this.get(
         `${CONFIG.API_BASE}/v007/tours/${tourId}/way_types`,
         signal,
       );
       const data = await resp.json();
-      // Response: { items: [{ from, to, element: "wt#..." }] }
       return data.items ?? [];
     } catch {
       return [];
     }
   }
 
-  async fetchSurfaces(tourId: number, signal?: AbortSignal): Promise<SurfaceSegment[]> {
+  async fetchSurfaces(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<SurfaceSegment[]> {
     try {
       const resp = await this.get(
         `${CONFIG.API_BASE}/v007/tours/${tourId}/surfaces`,
         signal,
       );
       const data = await resp.json();
-      // Response: { items: [{ from, to, element: "sb#..." }] }
       return data.items ?? [];
     } catch {
       return [];

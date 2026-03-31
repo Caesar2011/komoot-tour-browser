@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
-import type { Coordinate, SurfaceSegment, WayTypeSegment } from '../../../types.ts';
+import type {
+  Coordinate,
+  SurfaceSegment,
+  WayTypeSegment,
+} from '../../../types.ts';
 import {
   CONFIG,
   SURFACE_COLORS,
@@ -28,7 +32,11 @@ const PAD_RIGHT = 12;
 const DEFAULT_LINE_COLOR = '#4a6cf7';
 const FALLBACK_COLOR = '#95a5a6';
 
-export function ElevationProfile({ coords, wayTypes = [], surfaces = [] }: Props) {
+export function ElevationProfile({
+  coords,
+  wayTypes = [],
+  surfaces = [],
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
