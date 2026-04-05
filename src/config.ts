@@ -44,7 +44,21 @@ export const SPORT_LABELS: Record<string, string> = {
   climbing: 'Climbing',
 };
 
-/** Colors keyed by the full `wt#` element value from the API. */
+/** Deduplicated sport entries sorted by label. Computed once at module load. */
+export const UNIQUE_SPORTS: readonly [string, string][] = (() => {
+  const seen = new Set<string>();
+  const result: [string, string][] = [];
+  for (const [key, label] of Object.entries(SPORT_LABELS).sort(([, a], [, b]) =>
+    a.localeCompare(b),
+  )) {
+    if (!seen.has(label)) {
+      seen.add(label);
+      result.push([key, label]);
+    }
+  }
+  return result;
+})();
+
 export const WAY_TYPE_COLORS: Record<string, string> = {
   'wt#street': '#e74c3c',
   'wt#primary': '#c0392b',
@@ -62,7 +76,6 @@ export const WAY_TYPE_COLORS: Record<string, string> = {
   'wt#ferry': '#00bcd4',
 };
 
-/** Colors keyed by the full `sb#` element value from the API. */
 export const SURFACE_COLORS: Record<string, string> = {
   'sb#asphalt': '#555555',
   'sb#paved': '#777777',
@@ -78,7 +91,6 @@ export const SURFACE_COLORS: Record<string, string> = {
   'sb#wood': '#6d4c41',
 };
 
-/** Human-readable label for a wt# or sb# element key. */
 export function elementLabel(element: string): string {
   const raw = element.includes('#') ? element.split('#')[1] : element;
   return raw
@@ -124,6 +136,7 @@ export const CONFIG = Object.freeze({
   },
   COVER_IMAGE_WIDTH: 200,
   COVER_IMAGE_HEIGHT: 120,
-  /** 48-hour persistent cache TTL for tour detail data. */
   CACHE_TTL_MS: 48 * 60 * 60 * 1000,
+  /** Delay to distinguish single-click from double-click in sidebar. */
+  CLICK_ACTIVATE_DELAY_MS: 200,
 });

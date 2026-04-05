@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from 'preact/hooks';
-import { zipSync } from 'fflate';
 
 import type {
   BulkProgress,
@@ -17,24 +16,10 @@ import {
   resolveEffectiveTours,
   computeMoveRenames,
 } from '../logic/selection.ts';
-import { triggerDownload } from '../logic/utils.ts';
+import { downloadTour, downloadToursZip } from '../logic/export.ts';
 import { collectTours } from '../logic/tree.ts';
 
 let toastIdCounter = 0;
-
-async function blobToUint8Array(blob: Blob): Promise<Uint8Array> {
-  return new Uint8Array(await blob.arrayBuffer());
-}
-
-function makeZipBlob(entries: { name: string; content: Uint8Array }[]): Blob {
-  const files: Parameters<typeof zipSync>[0] = {};
-  for (const { name, content } of entries) {
-    files[name] = [content, { level: 6 }];
-  }
-  return new Blob([zipSync(files) as Uint8Array<ArrayBuffer>], {
-    type: 'application/zip',
-  });
-}
 
 export function useBulkOperations(
   tree: TreeNode | null,
@@ -61,7 +46,6 @@ export function useBulkOperations(
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  /** Build a tourId→Tour lookup from the tree for ownership checks. */
   const buildTourLookup = useCallback((): Map<number, Tour> => {
     if (!tree) return new Map();
     const all = collectTours(tree);
@@ -205,16 +189,14 @@ export function useBulkOperations(
       if (tours.length === 0) return;
 
       if (tours.length === 1) {
-        const tour = tours[0];
-        const safeName = (tour.name || 'tour').replace(
-          /[^a-zA-Z0-9_\-. ]/g,
-          '_',
-        );
-        const blob =
-          format === 'gpx'
-            ? await Api.downloadGpx(tour.id)
-            : await Api.downloadFit(tour.id);
-        triggerDownload(blob, `${safeName}.${format}`);
+        try {
+          await downloadTour(tours[0].id, tours[0].name, format);
+        } catch (e) {
+          addToast(
+            'error',
+            `Export failed: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
         return;
       }
 
@@ -227,51 +209,26 @@ export function useBulkOperations(
       });
 
       try {
-        const entries: { name: string; content: Uint8Array }[] = [];
-        const nameCount = new Map<string, number>();
-        let success = 0;
-
-        for (let i = 0; i < tours.length; i++) {
-          if (cancelledRef.current) break;
-          try {
-            const blob =
-              format === 'gpx'
-                ? await Api.downloadGpx(tours[i].id)
-                : await Api.downloadFit(tours[i].id);
-
-            const baseName =
-              (tours[i]._leafName || tours[i].name || 'tour').replace(
-                /[^a-zA-Z0-9_\-. ]/g,
-                '_',
-              ) + `.${format}`;
-
-            const count = nameCount.get(baseName) ?? 0;
-            nameCount.set(baseName, count + 1);
-
-            const dot = baseName.lastIndexOf('.');
-            const uniqueName =
-              count === 0
-                ? baseName
-                : `${baseName.slice(0, dot)}_${count}${baseName.slice(dot)}`;
-
-            entries.push({
-              name: uniqueName,
-              content: await blobToUint8Array(blob),
-            });
-            success++;
-          } catch {
-            // Skip failed downloads silently
-          }
-          setProgress((p) => (p ? { ...p, current: i + 1 } : null));
-        }
-
-        triggerDownload(makeZipBlob(entries), `tours.${format}.zip`);
+        const success = await downloadToursZip(tours, 'tours', format, {
+          onProgress: (current, total) => {
+            setProgress((p) => (p ? { ...p, current, total } : null));
+          },
+          isCancelled: () => cancelledRef.current,
+        });
 
         setProgress(null);
-        addToast(
-          'success',
-          `Exported ${success} tour${success !== 1 ? 's' : ''}.`,
-        );
+
+        if (cancelledRef.current) {
+          addToast(
+            'success',
+            `Cancelled. ${success} of ${tours.length} tours exported.`,
+          );
+        } else {
+          addToast(
+            'success',
+            `Exported ${success} tour${success !== 1 ? 's' : ''}.`,
+          );
+        }
       } catch (e) {
         setProgress(null);
         addToast(

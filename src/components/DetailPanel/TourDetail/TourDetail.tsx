@@ -11,7 +11,7 @@ import type {
   TourStatus,
   WayTypeSegment,
 } from '../../../types.ts';
-import { SPORT_LABELS } from '../../../config.ts';
+import { SPORT_LABELS, UNIQUE_SPORTS } from '../../../config.ts';
 import {
   formatDate,
   formatDist,
@@ -22,10 +22,12 @@ import {
 } from '../../../logic/utils.ts';
 import { Api } from '../../../logic/api.ts';
 import { komootTourUrl } from '../../../logic/komoot.ts';
+import { downloadTour } from '../../../logic/export.ts';
 import {
   resolveDisplayName,
   hasCustomName as checkCustomName,
 } from '../../../logic/tourName.ts';
+import { SplitExportButton } from '../../SplitExportButton/SplitExportButton.tsx';
 import { ElevationProfile } from '../ElevationProfile/ElevationProfile.tsx';
 
 import styles from './TourDetail.module.css';
@@ -43,8 +45,6 @@ interface Props {
     tourId: number,
     fields: Partial<{ sport: string; status: TourStatus }>,
   ) => Promise<void>;
-  onDownloadGpx: (tourId: number, name: string) => Promise<void>;
-  onDownloadFit: (tourId: number, name: string) => Promise<void>;
   onDeleteTour: (tour: Tour) => void;
   onRefresh: (tour: Tour, folderContext: FolderContext | null) => Promise<void>;
   lastExportFormat: ExportFormat;
@@ -59,22 +59,6 @@ function getTourOwner(tour: Tour): string {
   return Api.displayName || Api.userId || '–';
 }
 
-function resolveTemplatedSrc(
-  src: string,
-  templated?: boolean,
-  width = 400,
-  height = 240,
-): string {
-  if (!src) return '';
-  if (templated) {
-    return src
-      .replace('{width}', String(width))
-      .replace('{height}', String(height))
-      .replace('{crop}', 'true');
-  }
-  return src;
-}
-
 export function TourDetail({
   tour,
   coords,
@@ -85,8 +69,6 @@ export function TourDetail({
   folderContext,
   onRename,
   onPatchTour,
-  onDownloadGpx,
-  onDownloadFit,
   onDeleteTour,
   onRefresh,
   lastExportFormat,
@@ -99,8 +81,7 @@ export function TourDetail({
   const displayName = resolveDisplayName(tour, customNames);
 
   const [patchError, setPatchError] = useState('');
-  const [downloading, setDownloading] = useState<ExportFormat | null>(null);
-  const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const handleStatusChange = async (newStatus: TourStatus) => {
@@ -123,24 +104,15 @@ export function TourDetail({
     }
   };
 
-  const handleDownload = async (format: ExportFormat) => {
-    setDownloading(format);
+  const handleExport = async (format: ExportFormat) => {
+    setDownloading(true);
     try {
-      if (format === 'gpx') await onDownloadGpx(tour.id, displayName);
-      else await onDownloadFit(tour.id, displayName);
+      await downloadTour(tour.id, displayName, format);
     } catch {
       /* silently ignore */
     } finally {
-      setDownloading(null);
+      setDownloading(false);
     }
-  };
-
-  const handleExportClick = () => handleDownload(lastExportFormat);
-
-  const handleFormatSelect = (format: ExportFormat) => {
-    onSetExportFormat(format);
-    handleDownload(format);
-    setShowFormatMenu(false);
   };
 
   const handleRefresh = async () => {
@@ -165,17 +137,6 @@ export function TourDetail({
     ],
   ];
 
-  const seen = new Set<string>();
-  const uniqueSports: [string, string][] = [];
-  for (const [key, label] of Object.entries(SPORT_LABELS).sort(([, a], [, b]) =>
-    a.localeCompare(b),
-  )) {
-    if (!seen.has(label)) {
-      seen.add(label);
-      uniqueSports.push([key, label]);
-    }
-  }
-
   const resolvedCovers = coverImages
     .slice(0, 6)
     .map((img) => resolveCoverImageUrl(img, 400, 240))
@@ -184,9 +145,10 @@ export function TourDetail({
   const timelineImages = timeline
     .filter((e) => e.cover?.src)
     .slice(0, 12)
-    .map((e) => ({
-      src: resolveTemplatedSrc(e.cover!.src, e.cover!.templated, 300, 200),
-    }));
+    .map((e) =>
+      resolveCoverImageUrl(e.cover!.src, e.cover!.templated, 300, 200),
+    )
+    .filter(Boolean);
 
   const canEditSport = owned && isRecorded;
   const sportLabel = SPORT_LABELS[tour.sport] || tour.sport;
@@ -237,40 +199,13 @@ export function TourDetail({
           >
             {renameLabel}
           </button>
-          <div class={styles.splitExport}>
-            <button
-              class={styles.actionBtn}
-              onClick={handleExportClick}
-              disabled={downloading != null}
-              tabIndex={0}
-            >
-              {downloading === lastExportFormat ? '⏳' : '📥'}{' '}
-              {lastExportFormat.toUpperCase()}
-            </button>
-            <button
-              class={styles.splitArrow}
-              onClick={() => setShowFormatMenu(!showFormatMenu)}
-              title="Choose format"
-            >
-              ▾
-            </button>
-            {showFormatMenu && (
-              <div class={styles.formatMenu}>
-                <button
-                  class={`${styles.formatOption} ${lastExportFormat === 'gpx' ? styles.formatActive : ''}`}
-                  onClick={() => handleFormatSelect('gpx')}
-                >
-                  GPX
-                </button>
-                <button
-                  class={`${styles.formatOption} ${lastExportFormat === 'fit' ? styles.formatActive : ''}`}
-                  onClick={() => handleFormatSelect('fit')}
-                >
-                  FIT
-                </button>
-              </div>
-            )}
-          </div>
+          <SplitExportButton
+            format={lastExportFormat}
+            onExport={handleExport}
+            onFormatChange={onSetExportFormat}
+            disabled={downloading}
+            size="md"
+          />
           <button
             class={styles.actionBtn}
             onClick={handleRefresh}
@@ -313,10 +248,10 @@ export function TourDetail({
                   handleSportChange((e.target as HTMLSelectElement).value)
                 }
               >
-                {!uniqueSports.some(([k]) => k === tour.sport) && (
+                {!UNIQUE_SPORTS.some(([k]) => k === tour.sport) && (
                   <option value={tour.sport}>{sportLabel}</option>
                 )}
-                {uniqueSports.map(([key, label]) => (
+                {UNIQUE_SPORTS.map(([key, label]) => (
                   <option key={key} value={key}>
                     {label}
                   </option>
@@ -370,11 +305,11 @@ export function TourDetail({
         <div class={styles.section}>
           <div class={styles.sectionTitle}>Timeline</div>
           <div class={styles.imageGrid}>
-            {timelineImages.map((img, i) => (
+            {timelineImages.map((src, i) => (
               <img
                 key={i}
                 class={styles.coverImg}
-                src={img.src}
+                src={src}
                 alt={`Timeline ${i + 1}`}
                 loading="lazy"
               />

@@ -5,6 +5,7 @@ import { Api } from '../logic/api.ts';
 import { isOwnTour } from '../logic/utils.ts';
 import { computeFolderRenames } from '../logic/rename.ts';
 import { renameTourUnified, numericId } from '../logic/tourName.ts';
+import { collectTours, findNode } from '../logic/tree.ts';
 
 export function useRename(
   applyTourUpdate: (tourId: number, updates: Partial<Tour>) => void,
@@ -28,25 +29,19 @@ export function useRename(
   const handleFolderRename = useCallback(
     async (oldPath: string, newFolderName: string, tree: TreeNode) => {
       const renames = computeFolderRenames(oldPath, newFolderName, tree);
+      const node = findNode(tree, oldPath);
+      const allToursInFolder = node ? collectTours(node) : [];
+      const tourLookup = new Map(allToursInFolder.map((t) => [t.id, t]));
+
       await Promise.all(
         renames.map(async ({ tourId, newName }) => {
-          // Tours in the tree are display-name-substituted, so we need to
-          // find the actual tour to check ownership. The tree stores the
-          // (possibly substituted) tour objects.
-          // For folder renames, only own tours are in scope — foreign tours
-          // are custom-name-substituted and appear under potentially different
-          // folders, but the rename computation includes all tours under the
-          // folder node. We handle both.
-          const fakeForOwnerCheck = {
-            id: tourId,
-            _embedded: undefined,
-          } as Tour;
-          if (isOwnTour(fakeForOwnerCheck, Api.userId)) {
+          const tour = tourLookup.get(tourId);
+          if (!tour || isOwnTour(tour, Api.userId)) {
             await Api.renameTour(tourId, newName);
             applyTourUpdate(tourId, { name: newName });
             updateDetailTour(tourId, { name: newName });
           } else {
-            await setCustomName(numericId({ id: tourId }), newName);
+            await setCustomName(numericId(tour), newName);
           }
         }),
       );

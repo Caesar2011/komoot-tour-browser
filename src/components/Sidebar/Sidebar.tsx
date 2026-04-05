@@ -105,6 +105,13 @@ export function Sidebar({
     cancelRename,
   } = sidebarSel;
 
+  // Clean up pending activate timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingActivateRef.current) clearTimeout(pendingActivateRef.current);
+    };
+  }, []);
+
   const finishRenameAndRefocus = useCallback(
     (item: SidebarItem) => {
       finishRename(item);
@@ -138,7 +145,6 @@ export function Sidebar({
       (fi) => fi.type === 'tour' && fi.tour?.id === item.tourId,
     )?.tour;
     if (!tour) return false;
-    // Status-bar rename button only for own tours; foreign tour rename via double-click
     return isOwnTour(tour, userId);
   }, [selected, flatItems, userId]);
 
@@ -162,7 +168,7 @@ export function Sidebar({
           } else {
             onActivateItem('folder', item.path);
           }
-        }, 200);
+        }, CONFIG.CLICK_ACTIVATE_DELAY_MS);
       }
     },
     [
@@ -181,14 +187,6 @@ export function Sidebar({
         clearTimeout(pendingActivateRef.current);
         pendingActivateRef.current = null;
       }
-      if (item.type === 'tour' && item.tour) {
-        // Both own and foreign tours open inline rename.
-        // For own tours the input is pre-filled with the full tour.name (path).
-        // For foreign tours it is pre-filled with the custom name (handled in TourTreeItem).
-        startRenameFor(item);
-        return;
-      }
-      // Folders: inline rename (own only — folders are always own)
       startRenameFor(item);
     },
     [startRenameFor],

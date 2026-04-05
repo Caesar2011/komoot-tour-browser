@@ -24,6 +24,12 @@ import {
   setTourHash,
 } from '../logic/router.ts';
 
+function firstCoverUrl(images: CoverImage[]): string | undefined {
+  return images.length > 0
+    ? resolveCoverImageUrl(images[0]) || undefined
+    : undefined;
+}
+
 export function useSelection(
   tree: TreeNode | null,
   allTours: Tour[],
@@ -54,6 +60,16 @@ export function useSelection(
     abortRef.current = new AbortController();
     return abortRef.current.signal;
   };
+
+  const clearDetailState = useCallback(() => {
+    setDetailTour(null);
+    setDetailCoords(null);
+    setDetailFolderContext(null);
+    setDetailTimeline([]);
+    setDetailCoverImages([]);
+    setDetailWayTypes([]);
+    setDetailSurfaces([]);
+  }, []);
 
   const loadTracksForTours = useCallback(
     async (tours: Tour[]) => {
@@ -87,14 +103,11 @@ export function useSelection(
           const t = eagerBatch[i];
           const c = CONFIG.COLORS[i % CONFIG.COLORS.length];
 
-          let coverUrl: string | undefined;
           const coverResult = coverResults[i];
-          if (
-            coverResult.status === 'fulfilled' &&
-            coverResult.value.length > 0
-          ) {
-            coverUrl = resolveCoverImageUrl(coverResult.value[0]);
-          }
+          const coverUrl =
+            coverResult.status === 'fulfilled'
+              ? firstCoverUrl(coverResult.value)
+              : undefined;
 
           if (r.status === 'fulfilled' && r.value && r.value.length > 0) {
             newTracks.push({
@@ -158,10 +171,7 @@ export function useSelection(
         setDetailWayTypes(wayTypes);
         setDetailSurfaces(surfaces);
 
-        let coverUrl: string | undefined;
-        if (coverImages.length > 0) {
-          coverUrl = resolveCoverImageUrl(coverImages[0]);
-        }
+        const coverUrl = firstCoverUrl(coverImages);
 
         if (coords && coords.length > 0) {
           setTracks([
@@ -190,9 +200,6 @@ export function useSelection(
         setTourHash(tour.id);
       } catch (e) {
         if (e instanceof AuthExpiredError) onAuthError();
-        else if (!(e instanceof DOMException && e.name === 'AbortError')) {
-          // Silently ignore non-abort fetch failures
-        }
       } finally {
         if (!signal.aborted && !isCached) setLoading(false);
       }
@@ -200,7 +207,6 @@ export function useSelection(
     [onAuthError],
   );
 
-  /** Invalidate the persistent cache for a tour and reload its detail data. */
   const refreshDetail = useCallback(
     async (tour: Tour, folderCtx: FolderContext | null) => {
       await Api.invalidateTourCache(tour.id);
@@ -223,14 +229,7 @@ export function useSelection(
   const handleSelectFolder = useCallback(
     async (path: string) => {
       setSelection({ type: 'folder', path });
-      setDetailTour(null);
-      setDetailCoords(null);
-      setDetailFolderContext(null);
-      setDetailTimeline([]);
-      setDetailCoverImages([]);
-      setDetailWayTypes([]);
-      setDetailSurfaces([]);
-
+      clearDetailState();
       setFolderHash(path);
 
       if (!tree) return;
@@ -240,7 +239,7 @@ export function useSelection(
       setFolderTours(tours);
       await loadTracksForTours(tours);
     },
-    [tree, loadTracksForTours],
+    [tree, loadTracksForTours, clearDetailState],
   );
 
   const handleSelectTourFromList = useCallback(
@@ -326,33 +325,22 @@ export function useSelection(
   );
 
   const clearDetail = useCallback(() => {
-    setDetailTour(null);
-    setDetailCoords(null);
-    setDetailFolderContext(null);
-    setDetailTimeline([]);
-    setDetailCoverImages([]);
-    setDetailWayTypes([]);
-    setDetailSurfaces([]);
+    clearDetailState();
     setTracks([]);
     setSelection(null);
     clearHash();
-  }, []);
+  }, [clearDetailState]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
     setSelection(null);
     setTracks([]);
-    setDetailTour(null);
-    setDetailCoords(null);
-    setDetailFolderContext(null);
+    clearDetailState();
     setFolderTours([]);
-    setDetailTimeline([]);
-    setDetailCoverImages([]);
-    setDetailWayTypes([]);
-    setDetailSurfaces([]);
     setOpenPaths(new Set(['']));
+    deepLinkProcessedRef.current = false;
     clearHash();
-  }, []);
+  }, [clearDetailState]);
 
   // Deep link restoration
   useEffect(() => {

@@ -1,6 +1,5 @@
-import { useCallback, useRef, useState } from 'preact/hooks';
-
 import type { ExportFormat } from '../../../types.ts';
+import { SplitExportButton } from '../../SplitExportButton/SplitExportButton.tsx';
 
 import styles from './SelectionStatusBar.module.css';
 
@@ -27,22 +26,6 @@ export function SelectionStatusBar({
   onRename,
   onOpenInKomoot,
 }: Props) {
-  const [showFormatMenu, setShowFormatMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const handleExportClick = useCallback(() => {
-    onExport(lastExportFormat);
-  }, [lastExportFormat, onExport]);
-
-  const handleFormatSelect = useCallback(
-    (format: ExportFormat) => {
-      onSetExportFormat(format);
-      onExport(format);
-      setShowFormatMenu(false);
-    },
-    [onSetExportFormat, onExport],
-  );
-
   return (
     <div class={styles.bar}>
       <div class={styles.summary}>{summary.label}</div>
@@ -62,38 +45,11 @@ export function SelectionStatusBar({
         >
           🔗
         </button>
-        <div class={styles.splitBtn} ref={menuRef}>
-          <button
-            class={styles.btn}
-            onClick={handleExportClick}
-            title={`Export ${lastExportFormat.toUpperCase()}`}
-          >
-            📥 {lastExportFormat.toUpperCase()}
-          </button>
-          <button
-            class={styles.splitArrow}
-            onClick={() => setShowFormatMenu(!showFormatMenu)}
-            title="Choose export format"
-          >
-            ▾
-          </button>
-          {showFormatMenu && (
-            <div class={styles.formatMenu}>
-              <button
-                class={`${styles.formatOption} ${lastExportFormat === 'gpx' ? styles.formatActive : ''}`}
-                onClick={() => handleFormatSelect('gpx')}
-              >
-                GPX
-              </button>
-              <button
-                class={`${styles.formatOption} ${lastExportFormat === 'fit' ? styles.formatActive : ''}`}
-                onClick={() => handleFormatSelect('fit')}
-              >
-                FIT
-              </button>
-            </div>
-          )}
-        </div>
+        <SplitExportButton
+          format={lastExportFormat}
+          onExport={onExport}
+          onFormatChange={onSetExportFormat}
+        />
         <button
           class={`${styles.btn} ${styles.deleteBtn}`}
           onClick={onDelete}

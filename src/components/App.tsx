@@ -17,7 +17,6 @@ import { useBulkOperations } from '../hooks/useBulkOperations.ts';
 import { useDragDrop } from '../hooks/useDragDrop.ts';
 import { Api, ForbiddenError } from '../logic/api.ts';
 import { isOwnTour } from '../logic/utils.ts';
-import { resolveDisplayName } from '../logic/tourName.ts';
 import { resolveEffectiveTours } from '../logic/selection.ts';
 import { komootTourUrl, komootFolderUrl } from '../logic/komoot.ts';
 import { collectTours, findNode } from '../logic/tree.ts';
@@ -33,6 +32,7 @@ import { ConfirmDialog } from './ConfirmDialog/ConfirmDialog.tsx';
 import { BulkProgressDialog } from './BulkProgressDialog/BulkProgressDialog.tsx';
 import { ToastContainer } from './ToastContainer/ToastContainer.tsx';
 import { MappingDialog } from './MappingDialog/MappingDialog.tsx';
+import { FallbackRenameDialog } from './FallbackRenameDialog/FallbackRenameDialog.tsx';
 
 export function App() {
   const auth = useAuth();
@@ -105,26 +105,6 @@ export function App() {
       }
     },
     [tours, sel],
-  );
-
-  const handleDownloadGpx = useCallback(
-    async (tourId: number, tourName: string) => {
-      const { triggerDownload } = await import('../logic/utils.ts');
-      const blob = await Api.downloadGpx(tourId);
-      const safeName = (tourName || 'tour').replace(/[^a-zA-Z0-9_-]/g, '_');
-      triggerDownload(blob, `${safeName}.gpx`);
-    },
-    [],
-  );
-
-  const handleDownloadFit = useCallback(
-    async (tourId: number, tourName: string) => {
-      const { triggerDownload } = await import('../logic/utils.ts');
-      const blob = await Api.downloadFit(tourId);
-      const safeName = (tourName || 'tour').replace(/[^a-zA-Z0-9_-]/g, '_');
-      triggerDownload(blob, `${safeName}.fit`);
-    },
-    [],
   );
 
   const handleActivateItem = useCallback(
@@ -204,7 +184,6 @@ export function App() {
 
   const handleRenameFromDetail = useCallback(
     (tour: Tour) => {
-      // For foreign tours, always use the fallback dialog (shows original name)
       if (!isOwnTour(tour, Api.userId)) {
         setFallbackRenameTour(tour);
         return;
@@ -334,8 +313,6 @@ export function App() {
               onSelectTour={sel.handleSelectTourFromList}
               onRename={handleRenameFromDetail}
               onPatchTour={handlePatchTour}
-              onDownloadGpx={handleDownloadGpx}
-              onDownloadFit={handleDownloadFit}
               onDeleteTour={handleDeleteTourFromDetail}
               onRefresh={handleRefreshDetail}
               lastExportFormat={lastExportFormat}
@@ -419,130 +396,5 @@ export function App() {
       )}
       <ToastContainer toasts={bulk.toasts} onDismiss={bulk.dismissToast} />
     </>
-  );
-}
-
-/** Fallback rename dialog — handles both own tours and foreign (custom name) tours. */
-function FallbackRenameDialog({
-  tour,
-  customNames,
-  onSave,
-  onCancel,
-}: {
-  tour: Tour;
-  customNames: Map<number, string>;
-  onSave: (newName: string) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const isForeign = !isOwnTour(tour, Api.userId);
-  const displayName = resolveDisplayName(tour, customNames);
-  const initialValue = isForeign ? displayName : tour.name;
-  const [value, setValue] = useState(initialValue);
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    const trimmed = value.trim();
-    if (isForeign && trimmed === initialValue) {
-      onCancel();
-      return;
-    }
-    if (!isForeign && (!trimmed || trimmed === tour.name)) {
-      onCancel();
-      return;
-    }
-    setSaving(true);
-    await onSave(trimmed);
-    setSaving(false);
-  };
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.4)',
-        zIndex: 9998,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onCancel();
-      }}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: 28,
-          width: 480,
-          maxWidth: '90vw',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-        }}
-      >
-        <h3 style={{ fontSize: 16, marginBottom: 8 }}>
-          {isForeign ? '🏷️ Set Custom Name' : '✏️ Rename Tour'}
-        </h3>
-        {isForeign && (
-          <p
-            style={{
-              fontSize: 12,
-              color: '#6b7280',
-              marginBottom: 12,
-              lineHeight: 1.4,
-            }}
-          >
-            Original: <em>{tour.name}</em>
-            <br />
-            Leave empty to remove the custom name.
-          </p>
-        )}
-        <input
-          class="form-input"
-          type="text"
-          value={value}
-          onInput={(e) => setValue((e.target as HTMLInputElement).value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave();
-            if (e.key === 'Escape') onCancel();
-          }}
-          style={{ marginBottom: 16 }}
-          autoFocus
-        />
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '8px 18px',
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              border: 'none',
-              background: '#f3f4f6',
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{
-              padding: '8px 18px',
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              border: 'none',
-              background: '#4a6cf7',
-              color: '#fff',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.5 : 1,
-            }}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }

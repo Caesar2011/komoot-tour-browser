@@ -33,8 +33,6 @@ interface Props {
     tourId: number,
     fields: Partial<{ sport: string; status: TourStatus }>,
   ) => Promise<void>;
-  onDownloadGpx: (tourId: number, name: string) => Promise<void>;
-  onDownloadFit: (tourId: number, name: string) => Promise<void>;
   onDeleteTour: (tour: Tour) => void;
   onRefresh: (tour: Tour, folderContext: FolderContext | null) => Promise<void>;
   lastExportFormat: ExportFormat;
@@ -56,8 +54,6 @@ export function DetailPanel({
   onSelectTour,
   onRename,
   onPatchTour,
-  onDownloadGpx,
-  onDownloadFit,
   onDeleteTour,
   onRefresh,
   lastExportFormat,
@@ -130,8 +126,6 @@ export function DetailPanel({
             folderContext={folderContext}
             onRename={onRename}
             onPatchTour={onPatchTour}
-            onDownloadGpx={onDownloadGpx}
-            onDownloadFit={onDownloadFit}
             onDeleteTour={onDeleteTour}
             onRefresh={onRefresh}
             lastExportFormat={lastExportFormat}

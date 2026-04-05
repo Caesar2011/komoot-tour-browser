@@ -2,7 +2,12 @@ import type { Coordinate, CoverImage, SportType, Tour } from '../types.ts';
 import { CONFIG, SPORT_ICONS } from '../config.ts';
 
 export function encodeBase64(str: string): string {
-  return btoa(String.fromCodePoint(...new TextEncoder().encode(str)));
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 export function basicAuthHeader(user: string, pass: string): string {
@@ -37,12 +42,10 @@ export function formatDate(iso: string | undefined): string {
   }
 }
 
-/** Sort tours by date descending (newest first). */
 export function sortToursByDate(tours: Tour[]): Tour[] {
   return [...tours].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 }
 
-/** Haversine cumulative distance in meters for coordinate arrays. */
 export function cumulativeDistances(coords: Coordinate[]): number[] {
   const R = 6371000;
   const dists = [0];
@@ -66,7 +69,6 @@ export function cumulativeDistances(coords: Coordinate[]): number[] {
   return dists;
 }
 
-/** Pick a "nice" round step value for axis ticks. */
 export function niceStep(range: number, maxTicks: number): number {
   if (!range || !maxTicks || !isFinite(range) || !isFinite(maxTicks)) return 1;
   const rough = range / maxTicks;
@@ -80,20 +82,53 @@ export function niceStep(range: number, maxTicks: number): number {
   return nice * mag || 1;
 }
 
-/** Resolve a templated cover image URL to a concrete URL. */
+/** Sanitize a string for use as a filename. */
+export function safeName(name: string): string {
+  return (name || 'tour').replace(/[^a-zA-Z0-9_\-. ]/g, '_');
+}
+
+/**
+ * Resolve a cover image URL, handling Komoot's `{width}/{height}` templates.
+ * Accepts either a CoverImage object or raw (src, templated, width, height).
+ */
 export function resolveCoverImageUrl(
-  img: CoverImage,
-  width: number = CONFIG.COVER_IMAGE_WIDTH,
-  height: number = CONFIG.COVER_IMAGE_HEIGHT,
+  srcOrImage: string | CoverImage,
+  templatedOrWidth?: boolean | number,
+  widthOrHeight?: number,
+  height?: number,
 ): string {
-  if (!img.src) return '';
-  if (img.templated) {
-    return img.src
-      .replace('{width}', String(width))
-      .replace('{height}', String(height))
+  let src: string;
+  let templated: boolean | undefined;
+  let w: number;
+  let h: number;
+
+  if (typeof srcOrImage === 'object' && srcOrImage !== null) {
+    src = srcOrImage.src;
+    templated = srcOrImage.templated;
+    w =
+      typeof templatedOrWidth === 'number'
+        ? templatedOrWidth
+        : CONFIG.COVER_IMAGE_WIDTH;
+    h = widthOrHeight ?? CONFIG.COVER_IMAGE_HEIGHT;
+  } else {
+    src = srcOrImage;
+    templated =
+      typeof templatedOrWidth === 'boolean' ? templatedOrWidth : undefined;
+    w =
+      typeof widthOrHeight === 'number'
+        ? widthOrHeight
+        : CONFIG.COVER_IMAGE_WIDTH;
+    h = height ?? CONFIG.COVER_IMAGE_HEIGHT;
+  }
+
+  if (!src) return '';
+  if (templated) {
+    return src
+      .replace('{width}', String(w))
+      .replace('{height}', String(h))
       .replace('{crop}', 'true');
   }
-  return img.src;
+  return src;
 }
 
 /** Trigger a file download in the browser. */

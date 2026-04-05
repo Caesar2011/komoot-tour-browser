@@ -7,7 +7,8 @@ import type {
   SortField,
   Tour,
 } from '../../../types.ts';
-import { SPORT_ICONS, SPORT_LABELS } from '../../../config.ts';
+import { SPORT_LABELS } from '../../../config.ts';
+import { sportIcon } from '../../../logic/utils.ts';
 
 import styles from './FilterPanel.module.css';
 
@@ -35,8 +36,7 @@ export function FilterPanel({ filters, onChange, allTours }: Props) {
         ? '📋 Planned'
         : '⊘ All';
 
-  /** Sports sorted by occurrence count descending, computed once from allTours. */
-  const sortedSports = useMemo(() => {
+  const activeSports = useMemo(() => {
     const counts = new Map<string, number>();
     for (const t of allTours) {
       counts.set(t.sport, (counts.get(t.sport) ?? 0) + 1);
@@ -54,9 +54,6 @@ export function FilterPanel({ filters, onChange, allTours }: Props) {
   };
 
   const getSportLabel = (sport: string): string => SPORT_LABELS[sport] || sport;
-
-  const getSportIcon = (sport: string): string =>
-    (SPORT_ICONS as Record<string, string>)[sport] || '🏃';
 
   return (
     <div class={styles.wrapper}>
@@ -106,7 +103,6 @@ export function FilterPanel({ filters, onChange, allTours }: Props) {
           </div>
         </div>
 
-        {/* Date range: From and To on one row */}
         <div class={styles.row}>
           <span class={styles.label}>From</span>
           <input
@@ -128,19 +124,18 @@ export function FilterPanel({ filters, onChange, allTours }: Props) {
           />
         </div>
 
-        {/* Sport multi-select */}
-        {sortedSports.length > 0 && (
+        {activeSports.length > 0 && (
           <div class={styles.row}>
             <span class={styles.label}>Sport</span>
             <div class={styles.sportChips}>
-              {sortedSports.map((sport) => (
+              {activeSports.map((sport) => (
                 <button
                   key={sport}
                   class={`${styles.sportChip} ${filters.sports.includes(sport) ? styles.active : ''}`}
                   onClick={() => toggleSport(sport)}
                   title={getSportLabel(sport)}
                 >
-                  {getSportIcon(sport)} {getSportLabel(sport)}
+                  {sportIcon(sport)} {getSportLabel(sport)}
                 </button>
               ))}
             </div>

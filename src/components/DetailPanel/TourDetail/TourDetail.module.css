@@ -101,69 +101,6 @@
   outline-offset: 2px;
 }
 
-/* Split export button */
-.splitExport {
-  display: flex;
-  position: relative;
-}
-
-.splitExport .actionBtn {
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-}
-
-.splitArrow {
-  padding: 4px 5px;
-  border: 1px solid var(--c-border);
-  border-left: none;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: none;
-  font-size: 9px;
-  color: var(--c-text-faint);
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.splitArrow:hover {
-  color: var(--c-primary);
-  border-color: var(--c-primary);
-}
-
-.formatMenu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  padding: 2px;
-  margin-top: 4px;
-  z-index: 100;
-}
-
-.formatOption {
-  display: block;
-  width: 100%;
-  padding: 4px 12px;
-  border: none;
-  background: none;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--c-text);
-  cursor: pointer;
-  text-align: left;
-  border-radius: 2px;
-  font-family: inherit;
-}
-
-.formatOption:hover {
-  background: var(--c-primary-light);
-}
-
-.formatActive {
-  color: var(--c-primary);
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

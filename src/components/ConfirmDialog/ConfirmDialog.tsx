@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { JSX } from 'preact';
 
 import { formatDist, formatDur } from '../../logic/utils.ts';
+import { DialogShell } from '../DialogShell/DialogShell.tsx';
 
 import styles from './ConfirmDialog.module.css';
 
@@ -12,7 +12,6 @@ interface Props {
   cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
-  /** If set, shows tour stats and requires text confirmation for >5 tours. */
   bulkInfo?: {
     tourCount: number;
     totalDistance: number;
@@ -42,80 +41,67 @@ export function ConfirmDialog({
     cancelRef.current?.focus();
   }, []);
 
-  const handleOverlayClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onCancel();
-  };
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') onCancel();
-  };
-
   return (
-    <div
-      class={styles.overlay}
-      onClick={handleOverlayClick}
-      onKeyDown={handleKeyDown}
+    <DialogShell
+      onClose={onCancel}
+      width={440}
+      role="alertdialog"
+      labelledBy="confirm-title"
+      describedBy="confirm-msg"
     >
-      <div
-        class={styles.dialog}
-        role="alertdialog"
-        aria-labelledby="confirm-title"
-        aria-describedby="confirm-msg"
-      >
-        <h3 id="confirm-title" class={styles.title}>
-          {title}
-        </h3>
-        <p id="confirm-msg" class={styles.message}>
-          {message}
-        </p>
+      <h3 id="confirm-title" class={styles.title}>
+        {title}
+      </h3>
+      <p id="confirm-msg" class={styles.message}>
+        {message}
+      </p>
 
-        {bulkInfo && (
-          <div class={styles.statsRow}>
-            <span>
-              {bulkInfo.tourCount} tour{bulkInfo.tourCount !== 1 ? 's' : ''}
-            </span>
-            <span>·</span>
-            <span>{formatDist(bulkInfo.totalDistance)}</span>
-            <span>·</span>
-            <span>{formatDur(bulkInfo.totalDuration)}</span>
-          </div>
-        )}
-
-        <p class={styles.warning}>
-          ⚠️ This will permanently delete these tours on Komoot. This action
-          cannot be undone.
-        </p>
-
-        {needsTextConfirm && (
-          <div class={styles.confirmField}>
-            <label class={styles.confirmLabel}>
-              Type <strong>"{bulkInfo!.confirmText}"</strong> to confirm:
-            </label>
-            <input
-              class={styles.confirmInput}
-              type="text"
-              value={confirmInput}
-              onInput={(e) =>
-                setConfirmInput((e.target as HTMLInputElement).value)
-              }
-              placeholder={bulkInfo!.confirmText}
-            />
-          </div>
-        )}
-
-        <div class={styles.actions}>
-          <button ref={cancelRef} class={styles.cancelBtn} onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button
-            class={styles.confirmBtn}
-            onClick={onConfirm}
-            disabled={!isConfirmEnabled}
-          >
-            {confirmLabel}
-          </button>
+      {bulkInfo && (
+        <div class={styles.statsRow}>
+          <span>
+            {bulkInfo.tourCount} tour{bulkInfo.tourCount !== 1 ? 's' : ''}
+          </span>
+          <span>·</span>
+          <span>{formatDist(bulkInfo.totalDistance)}</span>
+          <span>·</span>
+          <span>{formatDur(bulkInfo.totalDuration)}</span>
         </div>
+      )}
+
+      <p class={styles.warning}>
+        ⚠️ This will permanently delete these tours on Komoot. This action
+        cannot be undone.
+      </p>
+
+      {needsTextConfirm && (
+        <div class={styles.confirmField}>
+          <label class={styles.confirmLabel}>
+            Type <strong>"{bulkInfo!.confirmText}"</strong> to confirm:
+          </label>
+          <input
+            class={styles.confirmInput}
+            type="text"
+            value={confirmInput}
+            onInput={(e) =>
+              setConfirmInput((e.target as HTMLInputElement).value)
+            }
+            placeholder={bulkInfo!.confirmText}
+          />
+        </div>
+      )}
+
+      <div class={styles.actions}>
+        <button ref={cancelRef} class={styles.cancelBtn} onClick={onCancel}>
+          {cancelLabel}
+        </button>
+        <button
+          class={styles.confirmBtn}
+          onClick={onConfirm}
+          disabled={!isConfirmEnabled}
+        >
+          {confirmLabel}
+        </button>
       </div>
-    </div>
+    </DialogShell>
   );
 }

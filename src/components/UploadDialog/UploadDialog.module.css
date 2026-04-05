@@ -1,27 +1,3 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 9998;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dialog {
-  background: var(--c-surface);
-  border-radius: 12px;
-  padding: 28px;
-  width: 480px;
-  max-width: 90vw;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-}
-
-.dialog h3 {
-  font-size: 16px;
-  margin-bottom: 16px;
-}
-
 .fileInput {
   width: 100%;
   margin-bottom: 16px;
