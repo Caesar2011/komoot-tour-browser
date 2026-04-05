@@ -1,6 +1,11 @@
 import { useCallback, useState } from 'preact/hooks';
 
-import type { ExportFormat, Tour, TourStatus } from '../types.ts';
+import type {
+  ExportFormat,
+  FolderContext,
+  Tour,
+  TourStatus,
+} from '../types.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useTours } from '../hooks/useTours.ts';
 import { useSelection } from '../hooks/useSelection.ts';
@@ -182,9 +187,7 @@ export function App() {
 
   const handleRenameFromDetail = useCallback(
     (tour: Tour) => {
-      // Only allow renaming owned tours
       if (!isOwnTour(tour, Api.userId)) return;
-
       const item = sidebarSel.flatItems.find(
         (fi) => fi.type === 'tour' && fi.tour?.id === tour.id,
       );
@@ -208,6 +211,13 @@ export function App() {
       setFallbackRenameTour(null);
     },
     [fallbackRenameTour, rename],
+  );
+
+  const handleRefreshDetail = useCallback(
+    async (tour: Tour, folderContext: FolderContext | null) => {
+      await sel.refreshDetail(tour, folderContext);
+    },
+    [sel],
   );
 
   const isLoading = tours.loading || sel.loading;
@@ -250,6 +260,7 @@ export function App() {
           <Sidebar
             tree={tours.tree}
             tourCount={tours.filteredTours.length}
+            toursLoading={tours.loading}
             filters={tours.filters}
             allTours={tours.allTours}
             onFiltersChange={tours.handleFiltersChange}
@@ -265,6 +276,7 @@ export function App() {
             onOpenInKomoot={handleOpenInKomoot}
             onInlineRename={handleInlineRename}
             onFolderRename={handleFolderRename}
+            onRefreshTours={tours.refreshTours}
             lastExportFormat={lastExportFormat}
             onSetExportFormat={setLastExportFormat}
           />
@@ -294,6 +306,7 @@ export function App() {
               onDownloadGpx={handleDownloadGpx}
               onDownloadFit={handleDownloadFit}
               onDeleteTour={handleDeleteTourFromDetail}
+              onRefresh={handleRefreshDetail}
               lastExportFormat={lastExportFormat}
               onSetExportFormat={setLastExportFormat}
             />

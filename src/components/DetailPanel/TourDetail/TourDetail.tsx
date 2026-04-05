@@ -4,6 +4,7 @@ import type {
   Coordinate,
   CoverImage,
   ExportFormat,
+  FolderContext,
   SurfaceSegment,
   TimelineEntry,
   Tour,
@@ -32,6 +33,7 @@ interface Props {
   coverImages: CoverImage[];
   wayTypes: WayTypeSegment[];
   surfaces: SurfaceSegment[];
+  folderContext: FolderContext | null;
   onRename: (tour: Tour) => void;
   onPatchTour: (
     tourId: number,
@@ -40,6 +42,7 @@ interface Props {
   onDownloadGpx: (tourId: number, name: string) => Promise<void>;
   onDownloadFit: (tourId: number, name: string) => Promise<void>;
   onDeleteTour: (tour: Tour) => void;
+  onRefresh: (tour: Tour, folderContext: FolderContext | null) => Promise<void>;
   lastExportFormat: ExportFormat;
   onSetExportFormat: (f: ExportFormat) => void;
 }
@@ -74,11 +77,13 @@ export function TourDetail({
   coverImages,
   wayTypes,
   surfaces,
+  folderContext,
   onRename,
   onPatchTour,
   onDownloadGpx,
   onDownloadFit,
   onDeleteTour,
+  onRefresh,
   lastExportFormat,
   onSetExportFormat,
 }: Props) {
@@ -87,6 +92,7 @@ export function TourDetail({
   const [patchError, setPatchError] = useState('');
   const [downloading, setDownloading] = useState<ExportFormat | null>(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleStatusChange = async (newStatus: TourStatus) => {
     if (newStatus === tour.status) return;
@@ -120,14 +126,21 @@ export function TourDetail({
     }
   };
 
-  const handleExportClick = () => {
-    handleDownload(lastExportFormat);
-  };
+  const handleExportClick = () => handleDownload(lastExportFormat);
 
   const handleFormatSelect = (format: ExportFormat) => {
     onSetExportFormat(format);
     handleDownload(format);
     setShowFormatMenu(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await onRefresh(tour, folderContext);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const stats: [string, string][] = [
@@ -235,6 +248,15 @@ export function TourDetail({
               </div>
             )}
           </div>
+          <button
+            class={styles.actionBtn}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Force refresh from server (clears 48h cache)"
+            tabIndex={0}
+          >
+            {refreshing ? '⏳' : '🔄'}
+          </button>
           <button
             class={`${styles.actionBtn} ${styles.deleteBtn}`}
             onClick={() => onDeleteTour(tour)}

@@ -200,6 +200,15 @@ export function useSelection(
     [onAuthError],
   );
 
+  /** Invalidate the persistent cache for a tour and reload its detail data. */
+  const refreshDetail = useCallback(
+    async (tour: Tour, folderCtx: FolderContext | null) => {
+      await Api.invalidateTourCache(tour.id);
+      await showTourDetail(tour, folderCtx);
+    },
+    [showTourDetail],
+  );
+
   const deriveFolderContext = useCallback((): FolderContext | null => {
     if (selection?.type === 'folder' && tree) {
       const node = findNode(tree, selection.path);
@@ -251,7 +260,6 @@ export function useSelection(
     [showTourDetail],
   );
 
-  /** Activate from the sidebar selection system. */
   const handleActivateItem = useCallback(
     async (type: 'folder' | 'tour', path: string, tourId?: number) => {
       if (type === 'folder') {
@@ -408,6 +416,7 @@ export function useSelection(
     closePath,
     updateDetailTour,
     clearDetail,
+    refreshDetail,
     reset,
   } as const;
 }

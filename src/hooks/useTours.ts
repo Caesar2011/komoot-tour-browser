@@ -12,32 +12,43 @@ export function useTours(authenticated: boolean, onAuthError: () => void) {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
+  const loadTours = useCallback(
+    (signal: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      return Api.fetchAllTours(signal)
+        .then((tours) => {
+          if (!signal.aborted) setAllTours(tours);
+        })
+        .catch((e) => {
+          if (signal.aborted) return;
+          if (e instanceof AuthExpiredError) onAuthError();
+          else setError('Failed to load tours. Please try again.');
+        })
+        .finally(() => {
+          if (!signal.aborted) setLoading(false);
+        });
+    },
+    [onAuthError],
+  );
+
   useEffect(() => {
     if (!authenticated) {
       setAllTours([]);
       setError(null);
       return;
     }
-
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-
-    Api.fetchAllTours(controller.signal)
-      .then((tours) => {
-        if (!controller.signal.aborted) setAllTours(tours);
-      })
-      .catch((e) => {
-        if (controller.signal.aborted) return;
-        if (e instanceof AuthExpiredError) onAuthError();
-        else setError('Failed to load tours. Please try again.');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
+    loadTours(controller.signal);
     return () => controller.abort();
-  }, [authenticated, onAuthError]);
+  }, [authenticated, loadTours]);
+
+  /** Invalidate the cached tour list and reload from network. */
+  const refreshTours = useCallback(async () => {
+    await Api.invalidateToursCache();
+    const controller = new AbortController();
+    await loadTours(controller.signal);
+  }, [loadTours]);
 
   const filteredTours = useMemo(
     () => applyFilters(allTours, filters),
@@ -45,11 +56,8 @@ export function useTours(authenticated: boolean, onAuthError: () => void) {
   );
 
   const tree = useMemo<TreeNode | null>(
-    () =>
-      filteredTours.length > 0 || allTours.length === 0
-        ? buildTree(filteredTours)
-        : buildTree(filteredTours),
-    [filteredTours, allTours.length],
+    () => buildTree(filteredTours),
+    [filteredTours],
   );
 
   const handleFiltersChange = useCallback((newFilters: Filters) => {
@@ -84,5 +92,6 @@ export function useTours(authenticated: boolean, onAuthError: () => void) {
     applyTourUpdate,
     addTour,
     removeTour,
+    refreshTours,
   } as const;
 }

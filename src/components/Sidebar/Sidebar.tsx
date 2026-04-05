@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
 import type {
@@ -22,6 +22,7 @@ import styles from './Sidebar.module.css';
 interface Props {
   tree: TreeNode | null;
   tourCount: number;
+  toursLoading: boolean;
   filters: Filters;
   allTours: Tour[];
   onFiltersChange: (filters: Filters) => void;
@@ -41,6 +42,7 @@ interface Props {
   onOpenInKomoot: () => void;
   onInlineRename: (tour: Tour, newName: string) => Promise<void>;
   onFolderRename: (oldPath: string, newName: string) => Promise<void>;
+  onRefreshTours: () => Promise<void>;
   lastExportFormat: ExportFormat;
   onSetExportFormat: (f: ExportFormat) => void;
 }
@@ -48,6 +50,7 @@ interface Props {
 export function Sidebar({
   tree,
   tourCount,
+  toursLoading,
   filters,
   allTours,
   onFiltersChange,
@@ -63,13 +66,14 @@ export function Sidebar({
   onOpenInKomoot,
   onInlineRename,
   onFolderRename,
+  onRefreshTours,
   lastExportFormat,
   onSetExportFormat,
 }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navRef = useRef<HTMLElement>(null);
-  /** Pending single-click activation, cancelled if a dblclick fires first. */
   const pendingActivateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const userId = Api.userId;
 
@@ -95,19 +99,14 @@ export function Sidebar({
     cancelRename,
   } = sidebarSel;
 
-  /** Restore DOM focus to the nav after rename so keyboard nav works immediately. */
   const finishRenameAndRefocus = useCallback(
     (item: SidebarItem) => {
       finishRename(item);
-      // Defer to next tick so the tree has re-rendered with updated flat items
-      setTimeout(() => {
-        navRef.current?.focus();
-      }, 0);
+      setTimeout(() => navRef.current?.focus(), 0);
     },
     [finishRename],
   );
 
-  // Scroll focused item into view
   useEffect(() => {
     if (focusIndex < 0 || !navRef.current) return;
     const items = navRef.current.querySelectorAll('[data-sidebar-index]');
@@ -124,11 +123,6 @@ export function Sidebar({
     );
   };
 
-  /**
-   * Determine if the single-item selection can be renamed.
-   * Requires exactly 1 item selected and that item must be owned by the user
-   * (for tours) or be a folder.
-   */
   const canRename = useCallback((): boolean => {
     if (selected.size !== 1) return false;
     const [item] = selected.values();
@@ -152,7 +146,6 @@ export function Sidebar({
         handleShiftClick(item, index);
       } else {
         handlePlainClick(item, index);
-        // Delay activation so a subsequent dblclick can cancel it
         if (pendingActivateRef.current)
           clearTimeout(pendingActivateRef.current);
         pendingActivateRef.current = setTimeout(() => {
@@ -177,12 +170,10 @@ export function Sidebar({
 
   const handleItemDoubleClick = useCallback(
     (_e: MouseEvent, item: SidebarItem) => {
-      // Cancel any pending single-click activation
       if (pendingActivateRef.current) {
         clearTimeout(pendingActivateRef.current);
         pendingActivateRef.current = null;
       }
-      // For tours, check ownership before allowing rename
       if (item.type === 'tour' && item.tour) {
         if (!isOwnTour(item.tour, userId)) return;
       }
@@ -194,9 +185,7 @@ export function Sidebar({
   const handleArrowClick = useCallback(
     (e: MouseEvent, item: SidebarItem) => {
       e.stopPropagation();
-      if (item.type === 'folder') {
-        onTogglePath(item.path);
-      }
+      if (item.type === 'folder') onTogglePath(item.path);
     },
     [onTogglePath],
   );
@@ -206,14 +195,21 @@ export function Sidebar({
     startRename();
   }, [canRename, startRename]);
 
-  // Keyboard navigation
+  const handleRefreshTours = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await onRefreshTours();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [onRefreshTours]);
+
   useEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (renamingItem) return;
-
       const active = document.activeElement;
       const tagName = active?.tagName?.toLowerCase();
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea')
@@ -227,22 +223,20 @@ export function Sidebar({
         case 'ArrowDown': {
           e.preventDefault();
           if (e.shiftKey) {
-            const next = focusIndex < len - 1 ? focusIndex + 1 : focusIndex;
-            handleShiftArrow(next);
+            handleShiftArrow(
+              focusIndex < len - 1 ? focusIndex + 1 : focusIndex,
+            );
           } else {
-            const next = focusIndex < len - 1 ? focusIndex + 1 : 0;
-            setFocusIndex(next);
+            setFocusIndex(focusIndex < len - 1 ? focusIndex + 1 : 0);
           }
           break;
         }
         case 'ArrowUp': {
           e.preventDefault();
           if (e.shiftKey) {
-            const prev = focusIndex > 0 ? focusIndex - 1 : focusIndex;
-            handleShiftArrow(prev);
+            handleShiftArrow(focusIndex > 0 ? focusIndex - 1 : focusIndex);
           } else {
-            const prev = focusIndex > 0 ? focusIndex - 1 : len - 1;
-            setFocusIndex(prev);
+            setFocusIndex(focusIndex > 0 ? focusIndex - 1 : len - 1);
           }
           break;
         }
@@ -251,9 +245,8 @@ export function Sidebar({
           if (focusIndex < 0 || focusIndex >= len) break;
           const item = flatItems[focusIndex];
           if (item.type === 'folder') {
-            if (!openPaths.has(item.path)) {
-              onOpenPath(item.path);
-            } else {
+            if (!openPaths.has(item.path)) onOpenPath(item.path);
+            else {
               activateFocused();
               onActivateItem('folder', item.path);
             }
@@ -284,11 +277,8 @@ export function Sidebar({
         }
         case ' ': {
           e.preventDefault();
-          if (e.ctrlKey || e.metaKey) {
-            handleCtrlSpace();
-          } else {
-            handleSpace();
-          }
+          if (e.ctrlKey || e.metaKey) handleCtrlSpace();
+          else handleSpace();
           break;
         }
         case 'Enter': {
@@ -296,11 +286,9 @@ export function Sidebar({
           if (focusIndex < 0 || focusIndex >= len) break;
           activateFocused();
           const item = flatItems[focusIndex];
-          if (item.type === 'tour' && item.tour) {
+          if (item.type === 'tour' && item.tour)
             onActivateItem('tour', item.path, item.tour.id);
-          } else {
-            onActivateItem('folder', item.path);
-          }
+          else onActivateItem('folder', item.path);
           break;
         }
         case 'F2': {
@@ -348,11 +336,22 @@ export function Sidebar({
   ]);
 
   const renameEnabled = canRename();
+  const isSpinning = refreshing || toursLoading;
 
   return (
     <aside class={styles.sidebar} aria-label="Tour navigation">
       <div class={styles.header}>
-        Tours · <span>{tourCount}</span>
+        <span>
+          Tours · <span>{tourCount}</span>
+        </span>
+        <button
+          class={styles.refreshBtn}
+          onClick={handleRefreshTours}
+          disabled={isSpinning}
+          title="Force refresh tour list from server"
+        >
+          <span class={isSpinning ? styles.spinning : ''}>🔄</span>
+        </button>
       </div>
       <div class={styles.filter}>
         <input

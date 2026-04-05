@@ -36,6 +36,7 @@ interface Props {
   onDownloadGpx: (tourId: number, name: string) => Promise<void>;
   onDownloadFit: (tourId: number, name: string) => Promise<void>;
   onDeleteTour: (tour: Tour) => void;
+  onRefresh: (tour: Tour, folderContext: FolderContext | null) => Promise<void>;
   lastExportFormat: ExportFormat;
   onSetExportFormat: (f: ExportFormat) => void;
 }
@@ -57,6 +58,7 @@ export function DetailPanel({
   onDownloadGpx,
   onDownloadFit,
   onDeleteTour,
+  onRefresh,
   lastExportFormat,
   onSetExportFormat,
 }: Props) {
@@ -123,11 +125,13 @@ export function DetailPanel({
             coverImages={coverImages}
             wayTypes={wayTypes}
             surfaces={surfaces}
+            folderContext={folderContext}
             onRename={onRename}
             onPatchTour={onPatchTour}
             onDownloadGpx={onDownloadGpx}
             onDownloadFit={onDownloadFit}
             onDeleteTour={onDeleteTour}
+            onRefresh={onRefresh}
             lastExportFormat={lastExportFormat}
             onSetExportFormat={onSetExportFormat}
           />

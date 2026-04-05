@@ -9,7 +9,7 @@
 }
 
 .header {
-  padding: 14px 16px;
+  padding: 0 8px 0 16px;
   border-bottom: 1px solid var(--c-border);
   font-size: 12px;
   font-weight: 700;
@@ -17,6 +17,46 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   flex-shrink: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.refreshBtn:hover:not(:disabled) {
+  background: var(--c-bg);
+}
+
+.refreshBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinning {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
 }
 
 .filter {

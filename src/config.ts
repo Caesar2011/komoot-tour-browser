@@ -80,7 +80,6 @@ export const SURFACE_COLORS: Record<string, string> = {
 
 /** Human-readable label for a wt# or sb# element key. */
 export function elementLabel(element: string): string {
-  // "wt#minor_road" → "Minor Road", "sb#paving_stones" → "Paving Stones"
   const raw = element.includes('#') ? element.split('#')[1] : element;
   return raw
     .split('_')
@@ -125,4 +124,6 @@ export const CONFIG = Object.freeze({
   },
   COVER_IMAGE_WIDTH: 200,
   COVER_IMAGE_HEIGHT: 120,
+  /** 48-hour persistent cache TTL for tour detail data. */
+  CACHE_TTL_MS: 48 * 60 * 60 * 1000,
 });
