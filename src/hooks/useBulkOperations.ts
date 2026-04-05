@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'preact/hooks';
+import { zipSync } from 'fflate';
 
 import type {
   BulkProgress,
@@ -17,6 +18,20 @@ import {
 import { triggerDownload } from '../logic/utils.ts';
 
 let toastIdCounter = 0;
+
+async function blobToUint8Array(blob: Blob): Promise<Uint8Array> {
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+function makeZipBlob(entries: { name: string; content: Uint8Array }[]): Blob {
+  const files: Parameters<typeof zipSync>[0] = {};
+  for (const { name, content } of entries) {
+    files[name] = [content, { level: 6 }];
+  }
+  return new Blob([zipSync(files) as Uint8Array<ArrayBuffer>], {
+    type: 'application/zip',
+  });
+}
 
 export function useBulkOperations(
   tree: TreeNode | null,
@@ -165,6 +180,7 @@ export function useBulkOperations(
     async (tours: Tour[], format: ExportFormat) => {
       if (tours.length === 0) return;
 
+      // Single-tour fast path — no zip needed
       if (tours.length === 1) {
         const tour = tours[0];
         const safeName = (tour.name || 'tour').replace(
@@ -188,10 +204,7 @@ export function useBulkOperations(
       });
 
       try {
-        const JSZipModule = await import('jszip');
-        const JSZip = JSZipModule.default || JSZipModule;
-        const zip = new JSZip();
-
+        const entries: { name: string; content: Uint8Array }[] = [];
         const nameCount = new Map<string, number>();
         let success = 0;
 
@@ -202,35 +215,34 @@ export function useBulkOperations(
               format === 'gpx'
                 ? await Api.downloadGpx(tours[i].id)
                 : await Api.downloadFit(tours[i].id);
-            let name =
+
+            const baseName =
               (tours[i]._leafName || tours[i].name || 'tour').replace(
                 /[^a-zA-Z0-9_\-. ]/g,
                 '_',
               ) + `.${format}`;
-            const count = nameCount.get(name) || 0;
-            if (count > 0) {
-              name = name.replace(
-                new RegExp(`\\.${format}$`),
-                `_${count}.${format}`,
-              );
-            }
-            nameCount.set(
-              (tours[i]._leafName || tours[i].name || 'tour').replace(
-                /[^a-zA-Z0-9_\-. ]/g,
-                '_',
-              ) + `.${format}`,
-              count + 1,
-            );
-            zip.file(name, blob);
+
+            const count = nameCount.get(baseName) ?? 0;
+            nameCount.set(baseName, count + 1);
+
+            const dot = baseName.lastIndexOf('.');
+            const uniqueName =
+              count === 0
+                ? baseName
+                : `${baseName.slice(0, dot)}_${count}${baseName.slice(dot)}`;
+
+            entries.push({
+              name: uniqueName,
+              content: await blobToUint8Array(blob),
+            });
             success++;
           } catch {
-            // Skip failed downloads
+            // Skip failed downloads silently
           }
           setProgress((p) => (p ? { ...p, current: i + 1 } : null));
         }
 
-        const content = await zip.generateAsync({ type: 'blob' });
-        triggerDownload(content, `tours.${format}.zip`);
+        triggerDownload(makeZipBlob(entries), `tours.${format}.zip`);
 
         setProgress(null);
         addToast(

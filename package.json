@@ -8,10 +8,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "prettier --write . && eslint --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "rerender": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
-    "jszip": "^3.10.1",
+    "fflate": "^0.8.2",
     "leaflet": "^1.9.4",
     "preact": "^10.24.3"
   },
