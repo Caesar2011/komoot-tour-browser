@@ -45,6 +45,7 @@ interface Props {
   onRefresh: (tour: Tour, folderContext: FolderContext | null) => Promise<void>;
   lastExportFormat: ExportFormat;
   onSetExportFormat: (f: ExportFormat) => void;
+  customNames: Map<number, string>;
 }
 
 function getTourOwner(tour: Tour): string {
@@ -86,9 +87,11 @@ export function TourDetail({
   onRefresh,
   lastExportFormat,
   onSetExportFormat,
+  customNames,
 }: Props) {
   const isRecorded = tour.type === 'tour_recorded';
   const owned = isOwnTour(tour, Api.userId);
+  const hasCustomName = !owned && customNames.has(tour.id);
   const [patchError, setPatchError] = useState('');
   const [downloading, setDownloading] = useState<ExportFormat | null>(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
@@ -183,12 +186,27 @@ export function TourDetail({
   const sportLabel = SPORT_LABELS[tour.sport] || tour.sport;
   const tourOwner = getTourOwner(tour);
 
+  const renameLabel = owned ? '✏️ Rename' : '🏷️ Custom Name';
+  const renameTitle = owned
+    ? 'Rename'
+    : hasCustomName
+      ? 'Edit custom name (overrides displayed name locally)'
+      : 'Set a custom local name for this tour';
+
   return (
     <>
       <div class={styles.header}>
         <div class={styles.titleRow}>
           <div class={styles.title}>
             {sportIcon(tour.sport)} {tour.name || 'Unnamed'}
+            {hasCustomName && (
+              <span
+                class={styles.customBadge}
+                title="Custom name applied locally"
+              >
+                🏷️
+              </span>
+            )}
           </div>
           <div class={styles.subtitle}>
             {isRecorded ? '✅ Recorded' : '📋 Planned'} · {tourOwner} ·{' '}
@@ -208,11 +226,10 @@ export function TourDetail({
           <button
             class={styles.actionBtn}
             onClick={() => onRename(tour)}
-            disabled={!owned}
-            title={owned ? 'Rename' : 'You can only rename your own tours'}
+            title={renameTitle}
             tabIndex={0}
           >
-            ✏️ Rename
+            {renameLabel}
           </button>
           <div class={styles.splitExport}>
             <button
@@ -257,13 +274,15 @@ export function TourDetail({
           >
             {refreshing ? '⏳' : '🔄'}
           </button>
-          <button
-            class={`${styles.actionBtn} ${styles.deleteBtn}`}
-            onClick={() => onDeleteTour(tour)}
-            tabIndex={0}
-          >
-            🗑️ Delete
-          </button>
+          {owned && (
+            <button
+              class={`${styles.actionBtn} ${styles.deleteBtn}`}
+              onClick={() => onDeleteTour(tour)}
+              tabIndex={0}
+            >
+              🗑️ Delete
+            </button>
+          )}
         </div>
       </div>
 

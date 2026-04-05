@@ -1,17 +1,37 @@
 const DB_NAME = 'komoot-tour-browser';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'cache';
+const STORE_CN = 'custom_names';
+const STORE_META = 'meta';
 
 interface CacheEntry<T> {
   value: T;
   cachedAt: number;
 }
 
+export interface CustomNameRecord {
+  tourId: number;
+  name: string;
+  updatedAt: number;
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE);
+    req.onupgradeneeded = (e) => {
+      const db = req.result;
+      // v1 store
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE);
+      }
+      // v2 stores
+      if (!db.objectStoreNames.contains(STORE_CN)) {
+        db.createObjectStore(STORE_CN, { keyPath: 'tourId' });
+      }
+      if (!db.objectStoreNames.contains(STORE_META)) {
+        db.createObjectStore(STORE_META);
+      }
+      void e;
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -26,22 +46,22 @@ function getDb(): Promise<IDBDatabase> {
 
 function idbGet<T>(
   store: IDBObjectStore,
-  key: string,
-): Promise<CacheEntry<T> | undefined> {
+  key: IDBValidKey,
+): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
     const req = store.get(key);
-    req.onsuccess = () => resolve(req.result as CacheEntry<T> | undefined);
+    req.onsuccess = () => resolve(req.result as T | undefined);
     req.onerror = () => reject(req.error);
   });
 }
 
 function idbPut<T>(
   store: IDBObjectStore,
-  key: string,
-  entry: CacheEntry<T>,
+  value: T,
+  key?: IDBValidKey,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const req = store.put(entry, key);
+    const req = key !== undefined ? store.put(value, key) : store.put(value);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
@@ -54,6 +74,16 @@ function idbDelete(store: IDBObjectStore, key: IDBValidKey): Promise<void> {
     req.onerror = () => reject(req.error);
   });
 }
+
+function idbGetAllValues<T>(store: IDBObjectStore): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result as T[]);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ── generic cache helpers ──────────────────────────────────────────────────
 
 export async function cacheGet<T>(
   key: string,
@@ -149,12 +179,12 @@ export async function cachePatchTour<T extends { id: number }>(
   try {
     const db = await getDb();
     const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
-    const entry = await idbGet<T[]>(store, listKey);
+    const entry = await idbGet<CacheEntry<T[]>>(store, listKey);
     if (!entry) return;
     const updated = entry.value.map((t) =>
       t.id === tourId ? { ...t, ...fields } : t,
     );
-    await idbPut(store, listKey, { value: updated, cachedAt: entry.cachedAt });
+    await idbPut(store, { value: updated, cachedAt: entry.cachedAt }, listKey);
   } catch {
     // ignore
   }
@@ -171,10 +201,10 @@ export async function cacheRemoveTour<T extends { id: number }>(
   try {
     const db = await getDb();
     const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
-    const entry = await idbGet<T[]>(store, listKey);
+    const entry = await idbGet<CacheEntry<T[]>>(store, listKey);
     if (!entry) return;
     const updated = entry.value.filter((t) => t.id !== tourId);
-    await idbPut(store, listKey, { value: updated, cachedAt: entry.cachedAt });
+    await idbPut(store, { value: updated, cachedAt: entry.cachedAt }, listKey);
   } catch {
     // ignore
   }
@@ -191,10 +221,73 @@ export async function cachePrependTour<T extends { id: number }>(
   try {
     const db = await getDb();
     const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
-    const entry = await idbGet<T[]>(store, listKey);
+    const entry = await idbGet<CacheEntry<T[]>>(store, listKey);
     if (!entry) return;
     const updated = [tour, ...entry.value.filter((t) => t.id !== tour.id)];
-    await idbPut(store, listKey, { value: updated, cachedAt: entry.cachedAt });
+    await idbPut(store, { value: updated, cachedAt: entry.cachedAt }, listKey);
+  } catch {
+    // ignore
+  }
+}
+
+// ── custom_names store helpers ─────────────────────────────────────────────
+
+/** Return all custom name records. */
+export async function cnGetAll(): Promise<CustomNameRecord[]> {
+  try {
+    const db = await getDb();
+    const store = db.transaction(STORE_CN, 'readonly').objectStore(STORE_CN);
+    return await idbGetAllValues<CustomNameRecord>(store);
+  } catch {
+    return [];
+  }
+}
+
+/** Upsert a custom name record. */
+export async function cnPut(record: CustomNameRecord): Promise<void> {
+  try {
+    const db = await getDb();
+    const store = db.transaction(STORE_CN, 'readwrite').objectStore(STORE_CN);
+    await idbPut(store, record);
+  } catch {
+    // ignore
+  }
+}
+
+/** Delete a custom name record by tourId. */
+export async function cnDelete(tourId: number): Promise<void> {
+  try {
+    const db = await getDb();
+    const store = db.transaction(STORE_CN, 'readwrite').objectStore(STORE_CN);
+    await idbDelete(store, tourId);
+  } catch {
+    // ignore
+  }
+}
+
+// ── meta store helpers ─────────────────────────────────────────────────────
+
+/** Read a value from the meta store. */
+export async function metaGet<T>(key: string): Promise<T | undefined> {
+  try {
+    const db = await getDb();
+    const store = db
+      .transaction(STORE_META, 'readonly')
+      .objectStore(STORE_META);
+    return await idbGet<T>(store, key);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Write a value to the meta store. */
+export async function metaPut<T>(key: string, value: T): Promise<void> {
+  try {
+    const db = await getDb();
+    const store = db
+      .transaction(STORE_META, 'readwrite')
+      .objectStore(STORE_META);
+    await idbPut(store, value, key);
   } catch {
     // ignore
   }

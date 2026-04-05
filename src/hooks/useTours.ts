@@ -5,8 +5,14 @@ import { DEFAULT_FILTERS } from '../types.ts';
 import { Api, AuthExpiredError } from '../logic/api.ts';
 import { applyFilters } from '../logic/filters.ts';
 import { buildTree } from '../logic/tree.ts';
+import { applyCustomNames } from '../logic/customNames.ts';
 
-export function useTours(authenticated: boolean, onAuthError: () => void) {
+export function useTours(
+  authenticated: boolean,
+  onAuthError: () => void,
+  customNames: Map<number, string> = new Map(),
+  userId: string = '',
+) {
   const [allTours, setAllTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +56,15 @@ export function useTours(authenticated: boolean, onAuthError: () => void) {
     await loadTours(controller.signal);
   }, [loadTours]);
 
+  /** Tours with custom names substituted — used for display only. */
+  const displayTours = useMemo(
+    () => applyCustomNames(allTours, customNames, userId),
+    [allTours, customNames, userId],
+  );
+
   const filteredTours = useMemo(
-    () => applyFilters(allTours, filters),
-    [allTours, filters],
+    () => applyFilters(displayTours, filters),
+    [displayTours, filters],
   );
 
   const tree = useMemo<TreeNode | null>(

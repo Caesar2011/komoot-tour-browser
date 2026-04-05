@@ -96,8 +96,16 @@
 .statusEmoji {
   font-size: 11px;
   flex-shrink: 0;
+  margin-left: 2px;
+  line-height: 1;
+}
+
+.customNameIcon {
+  font-size: 11px;
+  flex-shrink: 0;
   margin-left: auto;
   line-height: 1;
+  cursor: default;
 }
 
 .renameInput {

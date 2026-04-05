@@ -19,6 +19,11 @@
   flex-wrap: wrap;
 }
 
+.customBadge {
+  font-size: 14px;
+  cursor: default;
+}
+
 .subtitle {
   font-size: 13px;
   color: var(--c-text-muted);

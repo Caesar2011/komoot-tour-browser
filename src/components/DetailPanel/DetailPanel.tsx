@@ -39,6 +39,7 @@ interface Props {
   onRefresh: (tour: Tour, folderContext: FolderContext | null) => Promise<void>;
   lastExportFormat: ExportFormat;
   onSetExportFormat: (f: ExportFormat) => void;
+  customNames: Map<number, string>;
 }
 
 export function DetailPanel({
@@ -61,6 +62,7 @@ export function DetailPanel({
   onRefresh,
   lastExportFormat,
   onSetExportFormat,
+  customNames,
 }: Props) {
   if (!selection) {
     return (
@@ -134,6 +136,7 @@ export function DetailPanel({
             onRefresh={onRefresh}
             lastExportFormat={lastExportFormat}
             onSetExportFormat={onSetExportFormat}
+            customNames={customNames}
           />
         )}
       </div>

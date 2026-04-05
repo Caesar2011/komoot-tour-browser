@@ -7,7 +7,7 @@ import type {
   Tour,
   TreeNode,
 } from '../../../types.ts';
-import { sportIcon } from '../../../logic/utils.ts';
+import { sportIcon, isOwnTour } from '../../../logic/utils.ts';
 import { countTours } from '../../../logic/tree.ts';
 import { itemKey } from '../../../logic/selection.ts';
 
@@ -26,6 +26,7 @@ interface Props {
   dragOverPath: string | null;
   isDragging: boolean;
   userId: string;
+  customNames: Map<number, string>;
   onItemClick: (e: MouseEvent, item: SidebarItem, index: number) => void;
   onItemDoubleClick: (e: MouseEvent, item: SidebarItem) => void;
   onArrowClick: (e: MouseEvent, item: SidebarItem) => void;
@@ -61,6 +62,7 @@ export function TourTree({
   dragOverPath,
   isDragging,
   userId,
+  customNames,
   onItemClick,
   onItemDoubleClick,
   onArrowClick,
@@ -180,6 +182,7 @@ export function TourTree({
                 dragOverPath={dragOverPath}
                 isDragging={isDragging}
                 userId={userId}
+                customNames={customNames}
                 onItemClick={onItemClick}
                 onItemDoubleClick={onItemDoubleClick}
                 onArrowClick={onArrowClick}
@@ -210,6 +213,7 @@ export function TourTree({
                 flatItems={flatItems}
                 renamingItem={renamingItem}
                 userId={userId}
+                customNames={customNames}
                 onItemClick={onItemClick}
                 onItemDoubleClick={onItemDoubleClick}
                 onInlineRename={onInlineRename}
@@ -252,6 +256,7 @@ interface ItemProps {
   flatItems: SidebarItem[];
   renamingItem: SidebarItem | null;
   userId: string;
+  customNames: Map<number, string>;
   onItemClick: (e: MouseEvent, item: SidebarItem, index: number) => void;
   onItemDoubleClick: (e: MouseEvent, item: SidebarItem) => void;
   onInlineRename: (tour: Tour, newName: string) => Promise<void>;
@@ -274,6 +279,7 @@ function TourTreeItem({
   flatItems,
   renamingItem,
   userId,
+  customNames,
   onItemClick,
   onItemDoubleClick,
   onInlineRename,
@@ -301,9 +307,8 @@ function TourTreeItem({
   const isRenamingThis =
     renamingItem?.type === 'tour' && renamingItem.tour?.id === tour.id;
 
-  // Ownership: tours without creator info are assumed to be owned by the current user
-  const creatorId = tour._embedded?.creator?.username;
-  const owned = !creatorId || creatorId === userId;
+  const owned = isOwnTour(tour, userId);
+  const hasCustomName = !owned && customNames.has(tour.id);
 
   const classes = [
     styles.label,
@@ -316,9 +321,17 @@ function TourTreeItem({
     .join(' ');
 
   const handleDblClick = (e: MouseEvent) => {
-    if (isRenamingThis || !owned) return;
+    if (isRenamingThis) return;
+    // Own tours: inline rename with full tour.name (path) as initial value.
+    // Foreign tours: delegate to App's fallback dialog via onItemDoubleClick.
     onItemDoubleClick(e, sidebarItem);
   };
+
+  // Own tours rename using the full `tour.name` (which includes path hierarchy).
+  // Foreign tours rename using the stored custom name, or the displayed name.
+  const renameInitialValue = owned
+    ? tour.name
+    : (customNames.get(tour.id) ?? tour.name);
 
   return (
     <li
@@ -350,7 +363,8 @@ function TourTreeItem({
         <span class={styles.icon}>{sportIcon(tour.sport)}</span>
         {isRenamingThis ? (
           <InlineRenameInput
-            initialValue={tour.name}
+            initialValue={renameInitialValue}
+            allowEmpty={!owned}
             onSave={async (newName) => {
               await onInlineRename(tour, newName);
               onFinishRename(sidebarItem);
@@ -360,6 +374,11 @@ function TourTreeItem({
         ) : (
           <span class={styles.name}>
             {tour._leafName || tour.name || 'Unnamed'}
+          </span>
+        )}
+        {!isRenamingThis && hasCustomName && (
+          <span class={styles.customNameIcon} title="Custom name applied">
+            🏷️
           </span>
         )}
         {!isRenamingThis && (
@@ -374,12 +393,15 @@ function TourTreeItem({
 
 interface InlineRenameProps {
   initialValue: string;
+  /** When true, saving an empty string is allowed (foreign tour = delete custom name). */
+  allowEmpty?: boolean;
   onSave: (newName: string) => Promise<void>;
   onCancel: () => void;
 }
 
 function InlineRenameInput({
   initialValue,
+  allowEmpty = false,
   onSave,
   onCancel,
 }: InlineRenameProps) {
@@ -400,7 +422,12 @@ function InlineRenameInput({
 
   const doSave = async () => {
     const trimmed = value.trim();
-    if (!trimmed || trimmed === initialValue) {
+    // For own tours: disallow empty or unchanged. For foreign: allow empty (= delete).
+    if (!allowEmpty && (!trimmed || trimmed === initialValue)) {
+      onCancel();
+      return;
+    }
+    if (allowEmpty && trimmed === initialValue) {
       onCancel();
       return;
     }

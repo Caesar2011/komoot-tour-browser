@@ -8,6 +8,7 @@ import type {
 } from '../types.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useTours } from '../hooks/useTours.ts';
+import { useCustomNames } from '../hooks/useCustomNames.ts';
 import { useSelection } from '../hooks/useSelection.ts';
 import { useRename } from '../hooks/useRename.ts';
 import { useUpload } from '../hooks/useUpload.ts';
@@ -30,12 +31,25 @@ import { UploadDialog } from './UploadDialog/UploadDialog.tsx';
 import { ConfirmDialog } from './ConfirmDialog/ConfirmDialog.tsx';
 import { BulkProgressDialog } from './BulkProgressDialog/BulkProgressDialog.tsx';
 import { ToastContainer } from './ToastContainer/ToastContainer.tsx';
+import { MappingDialog } from './MappingDialog/MappingDialog.tsx';
 
 export function App() {
   const auth = useAuth();
-  const tours = useTours(auth.authenticated, auth.handleAuthError);
+  const customNameHook = useCustomNames();
+
+  const tours = useTours(
+    auth.authenticated,
+    auth.handleAuthError,
+    customNameHook.customNames,
+    Api.userId,
+  );
+
   const sel = useSelection(tours.tree, tours.allTours, auth.handleAuthError);
-  const rename = useRename(tours.applyTourUpdate, sel.updateDetailTour);
+  const rename = useRename(
+    tours.applyTourUpdate,
+    sel.updateDetailTour,
+    customNameHook.setCustomName,
+  );
   const upload = useUpload(tours.addTour);
   const sidebarSel = useSidebarSelection(tours.tree, sel.openPaths);
   const bulk = useBulkOperations(
@@ -50,6 +64,7 @@ export function App() {
   const [fallbackRenameTour, setFallbackRenameTour] = useState<Tour | null>(
     null,
   );
+  const [showMappingDialog, setShowMappingDialog] = useState(false);
 
   const handleDrop = useCallback(
     (targetPath: string) => {
@@ -187,7 +202,11 @@ export function App() {
 
   const handleRenameFromDetail = useCallback(
     (tour: Tour) => {
-      if (!isOwnTour(tour, Api.userId)) return;
+      // Foreign tours go through the custom name flow via fallback dialog
+      if (!isOwnTour(tour, Api.userId)) {
+        setFallbackRenameTour(tour);
+        return;
+      }
       const item = sidebarSel.flatItems.find(
         (fi) => fi.type === 'tour' && fi.tour?.id === tour.id,
       );
@@ -218,6 +237,13 @@ export function App() {
       await sel.refreshDetail(tour, folderContext);
     },
     [sel],
+  );
+
+  const handleImportMappings = useCallback(
+    async (file: File) => {
+      return customNameHook.importMappings(file);
+    },
+    [customNameHook],
   );
 
   const isLoading = tours.loading || sel.loading;
@@ -279,6 +305,9 @@ export function App() {
             onRefreshTours={tours.refreshTours}
             lastExportFormat={lastExportFormat}
             onSetExportFormat={setLastExportFormat}
+            customNames={customNameHook.customNames}
+            isDirtyMappings={customNameHook.isDirty}
+            onOpenMappingDialog={() => setShowMappingDialog(true)}
           />
           <div
             style={{
@@ -309,6 +338,7 @@ export function App() {
               onRefresh={handleRefreshDetail}
               lastExportFormat={lastExportFormat}
               onSetExportFormat={setLastExportFormat}
+              customNames={customNameHook.customNames}
             />
           </div>
         </div>
@@ -355,7 +385,8 @@ export function App() {
       )}
       {fallbackRenameTour && (
         <FallbackRenameDialog
-          tourName={fallbackRenameTour.name}
+          tour={fallbackRenameTour}
+          customNames={customNameHook.customNames}
           onSave={handleFallbackRenameSave}
           onCancel={() => setFallbackRenameTour(null)}
         />
@@ -374,27 +405,47 @@ export function App() {
           onClose={() => upload.setShowUpload(false)}
         />
       )}
+      {showMappingDialog && (
+        <MappingDialog
+          records={customNameHook.records}
+          isDirty={customNameHook.isDirty}
+          onExport={customNameHook.exportMappings}
+          onImport={handleImportMappings}
+          onDelete={customNameHook.deleteMapping}
+          onClose={() => setShowMappingDialog(false)}
+        />
+      )}
       <ToastContainer toasts={bulk.toasts} onDismiss={bulk.dismissToast} />
     </>
   );
 }
 
-/** Minimal fallback rename dialog when inline rename isn't possible. */
+/** Fallback rename dialog — handles both own tours and foreign (custom name) tours. */
 function FallbackRenameDialog({
-  tourName,
+  tour,
+  customNames,
   onSave,
   onCancel,
 }: {
-  tourName: string;
+  tour: Tour;
+  customNames: Map<number, string>;
   onSave: (newName: string) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [value, setValue] = useState(tourName);
+  const isForeign = !isOwnTour(tour, Api.userId);
+  const initialValue = isForeign
+    ? (customNames.get(tour.id) ?? tour.name)
+    : tour.name;
+  const [value, setValue] = useState(initialValue);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     const trimmed = value.trim();
-    if (!trimmed || trimmed === tourName) {
+    if (isForeign && trimmed === initialValue) {
+      onCancel();
+      return;
+    }
+    if (!isForeign && (!trimmed || trimmed === tour.name)) {
       onCancel();
       return;
     }
@@ -428,7 +479,23 @@ function FallbackRenameDialog({
           boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         }}
       >
-        <h3 style={{ fontSize: 16, marginBottom: 16 }}>✏️ Rename Tour</h3>
+        <h3 style={{ fontSize: 16, marginBottom: 8 }}>
+          {isForeign ? '🏷️ Set Custom Name' : '✏️ Rename Tour'}
+        </h3>
+        {isForeign && (
+          <p
+            style={{
+              fontSize: 12,
+              color: '#6b7280',
+              marginBottom: 12,
+              lineHeight: 1.4,
+            }}
+          >
+            Original: <em>{tour.name}</em>
+            <br />
+            Leave empty to remove the custom name.
+          </p>
+        )}
         <input
           class="form-input"
           type="text"
