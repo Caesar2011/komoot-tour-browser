@@ -4,12 +4,10 @@ import type { Filters, Tour } from '../types.ts';
 export function applyFilters(tours: Tour[], filters: Filters): Tour[] {
   let result = tours;
 
-  // Type filter
   if (filters.type) {
     result = result.filter((t) => t.type === filters.type);
   }
 
-  // Status filter (union of selected statuses; none selected = show all)
   const { statusPublic, statusPrivate, statusFriends } = filters;
   if (statusPublic || statusPrivate || statusFriends) {
     const allowed = new Set<string>();
@@ -19,7 +17,6 @@ export function applyFilters(tours: Tour[], filters: Filters): Tour[] {
     result = result.filter((t) => t.status && allowed.has(t.status));
   }
 
-  // Date range
   if (filters.startDate) {
     const start = filters.startDate;
     result = result.filter((t) => (t.date ?? '') >= start);
@@ -29,13 +26,16 @@ export function applyFilters(tours: Tour[], filters: Filters): Tour[] {
     result = result.filter((t) => (t.date ?? '') <= end);
   }
 
-  // Name search
   const q = filters.nameQuery.toLowerCase().trim();
   if (q) {
     result = result.filter((t) => (t.name || '').toLowerCase().includes(q));
   }
 
-  // Sort
+  if (filters.sports.length > 0) {
+    const sportSet = new Set(filters.sports);
+    result = result.filter((t) => sportSet.has(t.sport));
+  }
+
   result = sortTours(result, filters.sortField, filters.sortDirection);
 
   return result;

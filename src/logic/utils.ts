@@ -116,3 +116,10 @@ export function detectDataType(filename: string): string {
   if (ext === 'tcx') return 'tcx';
   return 'gpx';
 }
+
+/** Returns true if the tour belongs to the currently authenticated user. */
+export function isOwnTour(tour: Tour, userId: string): boolean {
+  if (!userId) return false;
+  const creatorId = tour._embedded?.creator?.username;
+  return !creatorId || creatorId === userId;
+}

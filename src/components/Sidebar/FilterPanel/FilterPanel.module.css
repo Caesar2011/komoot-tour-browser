@@ -3,7 +3,6 @@
   flex-shrink: 0;
 }
 
-/* Hidden checkbox drives the collapse */
 .toggle {
   display: none;
 }
@@ -40,20 +39,21 @@
 .panel {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 200ms ease;
+  transition: max-height 300ms ease;
   padding: 0 12px;
 }
 
 .toggle:checked ~ .panel {
-  max-height: 300px;
+  max-height: 500px;
   padding: 0 12px 8px;
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .label {
@@ -110,18 +110,57 @@
   border-color: var(--c-primary);
 }
 
+/* Date fields side by side */
 .dateInput {
   flex: 1;
   min-width: 0;
-  padding: 3px 6px;
+  padding: 3px 4px;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: 10px;
   font-family: inherit;
   outline: none;
 }
 
 .dateInput:focus {
+  border-color: var(--c-primary);
+}
+
+.dateSep {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--c-text-faint);
+  flex-shrink: 0;
+}
+
+/* Sport chips */
+.sportChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex: 1;
+}
+
+.sportChip {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  background: var(--c-bg);
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.sportChip.active {
+  background: var(--c-primary-light);
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+
+.sportChip:hover {
   border-color: var(--c-primary);
 }
 

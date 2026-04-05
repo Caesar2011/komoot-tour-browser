@@ -25,6 +25,7 @@ interface Props {
   renamingItem: SidebarItem | null;
   dragOverPath: string | null;
   isDragging: boolean;
+  userId: string;
   onItemClick: (e: MouseEvent, item: SidebarItem, index: number) => void;
   onItemDoubleClick: (e: MouseEvent, item: SidebarItem) => void;
   onArrowClick: (e: MouseEvent, item: SidebarItem) => void;
@@ -59,6 +60,7 @@ export function TourTree({
   renamingItem,
   dragOverPath,
   isDragging,
+  userId,
   onItemClick,
   onItemDoubleClick,
   onArrowClick,
@@ -135,11 +137,14 @@ export function TourTree({
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
+          {/* Stop propagation on the arrow to prevent dblclick bubbling to the row */}
           <span
             class={`${styles.toggle} ${isOpen ? styles.open : ''}`}
             onClick={(e: MouseEvent) => {
+              e.stopPropagation();
               onArrowClick(e, folderItem);
             }}
+            onDblClick={(e: MouseEvent) => e.stopPropagation()}
           >
             {hasKids ? '▶' : ''}
           </span>
@@ -174,6 +179,7 @@ export function TourTree({
                 renamingItem={renamingItem}
                 dragOverPath={dragOverPath}
                 isDragging={isDragging}
+                userId={userId}
                 onItemClick={onItemClick}
                 onItemDoubleClick={onItemDoubleClick}
                 onArrowClick={onArrowClick}
@@ -203,6 +209,7 @@ export function TourTree({
                 focusedIndex={focusedIndex}
                 flatItems={flatItems}
                 renamingItem={renamingItem}
+                userId={userId}
                 onItemClick={onItemClick}
                 onItemDoubleClick={onItemDoubleClick}
                 onInlineRename={onInlineRename}
@@ -244,6 +251,7 @@ interface ItemProps {
   focusedIndex: number;
   flatItems: SidebarItem[];
   renamingItem: SidebarItem | null;
+  userId: string;
   onItemClick: (e: MouseEvent, item: SidebarItem, index: number) => void;
   onItemDoubleClick: (e: MouseEvent, item: SidebarItem) => void;
   onInlineRename: (tour: Tour, newName: string) => Promise<void>;
@@ -265,6 +273,7 @@ function TourTreeItem({
   focusedIndex,
   flatItems,
   renamingItem,
+  userId,
   onItemClick,
   onItemDoubleClick,
   onInlineRename,
@@ -292,6 +301,10 @@ function TourTreeItem({
   const isRenamingThis =
     renamingItem?.type === 'tour' && renamingItem.tour?.id === tour.id;
 
+  // Ownership: tours without creator info are assumed to be owned by the current user
+  const creatorId = tour._embedded?.creator?.username;
+  const owned = !creatorId || creatorId === userId;
+
   const classes = [
     styles.label,
     isTourSelected ? styles.selected : '',
@@ -301,6 +314,11 @@ function TourTreeItem({
   ]
     .filter(Boolean)
     .join(' ');
+
+  const handleDblClick = (e: MouseEvent) => {
+    if (isRenamingThis || !owned) return;
+    onItemDoubleClick(e, sidebarItem);
+  };
 
   return (
     <li
@@ -319,9 +337,7 @@ function TourTreeItem({
           e.stopPropagation();
           onItemClick(e, sidebarItem, flatIdx);
         }}
-        onDblClick={(e: MouseEvent) => {
-          if (!isRenamingThis) onItemDoubleClick(e, sidebarItem);
-        }}
+        onDblClick={handleDblClick}
         onDragStart={(e: DragEvent) => onDragStart(e, sidebarItem)}
         onDragEnd={onDragEnd}
         onTouchStart={(e: TouchEvent) => {
@@ -372,11 +388,9 @@ function InlineRenameInput({
   const [saving, setSaving] = useState(false);
   const blurIgnoreRef = useRef(false);
 
-  // Focus and select on mount
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
-    // Use a small delay to ensure the DOM has settled
     const id = setTimeout(() => {
       el.focus();
       el.setSelectionRange(0, el.value.length);
@@ -402,7 +416,6 @@ function InlineRenameInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    // Stop all key events from propagating to the sidebar keyboard handler
     e.stopPropagation();
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -414,7 +427,6 @@ function InlineRenameInput({
   };
 
   const handleBlur = () => {
-    // Ignore blur during save (the component may be unmounting)
     if (blurIgnoreRef.current || saving) return;
     onCancel();
   };

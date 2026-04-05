@@ -9,6 +9,8 @@ import type {
   TreeNode,
 } from '../../types.ts';
 import { CONFIG } from '../../config.ts';
+import { Api } from '../../logic/api.ts';
+import { isOwnTour } from '../../logic/utils.ts';
 import type { useSidebarSelection } from '../../hooks/useSidebarSelection.ts';
 import type { useDragDrop } from '../../hooks/useDragDrop.ts';
 
@@ -21,6 +23,7 @@ interface Props {
   tree: TreeNode | null;
   tourCount: number;
   filters: Filters;
+  allTours: Tour[];
   onFiltersChange: (filters: Filters) => void;
   onTogglePath: (path: string) => void;
   onOpenPath: (path: string) => void;
@@ -46,6 +49,7 @@ export function Sidebar({
   tree,
   tourCount,
   filters,
+  allTours,
   onFiltersChange,
   onTogglePath,
   onOpenPath,
@@ -64,6 +68,10 @@ export function Sidebar({
 }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navRef = useRef<HTMLElement>(null);
+  /** Pending single-click activation, cancelled if a dblclick fires first. */
+  const pendingActivateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const userId = Api.userId;
 
   const {
     focusIndex,
@@ -87,6 +95,18 @@ export function Sidebar({
     cancelRename,
   } = sidebarSel;
 
+  /** Restore DOM focus to the nav after rename so keyboard nav works immediately. */
+  const finishRenameAndRefocus = useCallback(
+    (item: SidebarItem) => {
+      finishRename(item);
+      // Defer to next tick so the tree has re-rendered with updated flat items
+      setTimeout(() => {
+        navRef.current?.focus();
+      }, 0);
+    },
+    [finishRename],
+  );
+
   // Scroll focused item into view
   useEffect(() => {
     if (focusIndex < 0 || !navRef.current) return;
@@ -104,10 +124,26 @@ export function Sidebar({
     );
   };
 
+  /**
+   * Determine if the single-item selection can be renamed.
+   * Requires exactly 1 item selected and that item must be owned by the user
+   * (for tours) or be a folder.
+   */
+  const canRename = useCallback((): boolean => {
+    if (selected.size !== 1) return false;
+    const [item] = selected.values();
+    if (item.type === 'folder') return true;
+    if (item.tourId == null) return false;
+    const tour = flatItems.find(
+      (fi) => fi.type === 'tour' && fi.tour?.id === item.tourId,
+    )?.tour;
+    if (!tour) return false;
+    return isOwnTour(tour, userId);
+  }, [selected, flatItems, userId]);
+
   const handleItemClick = useCallback(
     (e: MouseEvent, item: SidebarItem, index: number) => {
       if (renamingItem) return;
-      // Suppress click if it was triggered after a long-press touch
       if (dragDrop.shouldSuppressClick()) return;
 
       if (e.ctrlKey || e.metaKey) {
@@ -116,11 +152,17 @@ export function Sidebar({
         handleShiftClick(item, index);
       } else {
         handlePlainClick(item, index);
-        if (item.type === 'tour' && item.tour) {
-          onActivateItem('tour', item.path, item.tour.id);
-        } else {
-          onActivateItem('folder', item.path);
-        }
+        // Delay activation so a subsequent dblclick can cancel it
+        if (pendingActivateRef.current)
+          clearTimeout(pendingActivateRef.current);
+        pendingActivateRef.current = setTimeout(() => {
+          pendingActivateRef.current = null;
+          if (item.type === 'tour' && item.tour) {
+            onActivateItem('tour', item.path, item.tour.id);
+          } else {
+            onActivateItem('folder', item.path);
+          }
+        }, 200);
       }
     },
     [
@@ -135,9 +177,18 @@ export function Sidebar({
 
   const handleItemDoubleClick = useCallback(
     (_e: MouseEvent, item: SidebarItem) => {
+      // Cancel any pending single-click activation
+      if (pendingActivateRef.current) {
+        clearTimeout(pendingActivateRef.current);
+        pendingActivateRef.current = null;
+      }
+      // For tours, check ownership before allowing rename
+      if (item.type === 'tour' && item.tour) {
+        if (!isOwnTour(item.tour, userId)) return;
+      }
       startRenameFor(item);
     },
-    [startRenameFor],
+    [startRenameFor, userId],
   );
 
   const handleArrowClick = useCallback(
@@ -149,6 +200,11 @@ export function Sidebar({
     },
     [onTogglePath],
   );
+
+  const handleStartRename = useCallback(() => {
+    if (!canRename()) return;
+    startRename();
+  }, [canRename, startRename]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -249,7 +305,7 @@ export function Sidebar({
         }
         case 'F2': {
           e.preventDefault();
-          startRename();
+          handleStartRename();
           break;
         }
         case 'Escape': {
@@ -288,8 +344,10 @@ export function Sidebar({
     onClosePath,
     onOpenPath,
     setFocusIndex,
-    startRename,
+    handleStartRename,
   ]);
+
+  const renameEnabled = canRename();
 
   return (
     <aside class={styles.sidebar} aria-label="Tour navigation">
@@ -306,7 +364,11 @@ export function Sidebar({
           onInput={handleInput}
         />
       </div>
-      <FilterPanel filters={filters} onChange={onFiltersChange} />
+      <FilterPanel
+        filters={filters}
+        onChange={onFiltersChange}
+        allTours={allTours}
+      />
       <nav ref={navRef} class={styles.tree} aria-label="Tour tree" tabIndex={0}>
         {tree && (
           <TourTree
@@ -321,13 +383,14 @@ export function Sidebar({
             renamingItem={renamingItem}
             dragOverPath={dragDrop.dragOverPath}
             isDragging={dragDrop.isDragging}
+            userId={userId}
             onItemClick={handleItemClick}
             onItemDoubleClick={handleItemDoubleClick}
             onArrowClick={handleArrowClick}
             onInlineRename={onInlineRename}
             onFolderRename={onFolderRename}
             onCancelRename={cancelRename}
-            onFinishRename={finishRename}
+            onFinishRename={finishRenameAndRefocus}
             onDragStart={dragDrop.handleDragStart}
             onDragOver={dragDrop.handleDragOver}
             onDragLeave={dragDrop.handleDragLeave}
@@ -343,11 +406,12 @@ export function Sidebar({
         <SelectionStatusBar
           summary={selectionSummary}
           selectedCount={selected.size}
+          canRename={renameEnabled}
           lastExportFormat={lastExportFormat}
           onSetExportFormat={onSetExportFormat}
           onExport={onBulkExport}
           onDelete={onBulkDelete}
-          onRename={startRename}
+          onRename={handleStartRename}
           onOpenInKomoot={onOpenInKomoot}
         />
       )}

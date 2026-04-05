@@ -7,6 +7,7 @@ import styles from './SelectionStatusBar.module.css';
 interface Props {
   summary: { count: number; distance: number; duration: number; label: string };
   selectedCount: number;
+  canRename: boolean;
   lastExportFormat: ExportFormat;
   onSetExportFormat: (f: ExportFormat) => void;
   onExport: (format: ExportFormat) => void;
@@ -17,7 +18,8 @@ interface Props {
 
 export function SelectionStatusBar({
   summary,
-  selectedCount,
+  selectedCount: _selectedCount,
+  canRename,
   lastExportFormat,
   onSetExportFormat,
   onExport,
@@ -27,8 +29,6 @@ export function SelectionStatusBar({
 }: Props) {
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const canRename = selectedCount === 1;
 
   const handleExportClick = useCallback(() => {
     onExport(lastExportFormat);
@@ -51,7 +51,7 @@ export function SelectionStatusBar({
           class={styles.btn}
           onClick={onRename}
           disabled={!canRename}
-          title={canRename ? 'Rename' : 'Select exactly 1 item to rename'}
+          title={canRename ? 'Rename' : 'Select exactly 1 owned item to rename'}
         >
           ✏️
         </button>

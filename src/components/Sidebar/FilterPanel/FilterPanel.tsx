@@ -1,15 +1,23 @@
 import type { JSX } from 'preact';
+import { useMemo } from 'preact/hooks';
 
-import type { Filters, SortDirection, SortField } from '../../../types.ts';
+import type {
+  Filters,
+  SortDirection,
+  SortField,
+  Tour,
+} from '../../../types.ts';
+import { SPORT_ICONS, SPORT_LABELS } from '../../../config.ts';
 
 import styles from './FilterPanel.module.css';
 
 interface Props {
   filters: Filters;
   onChange: (filters: Filters) => void;
+  allTours: Tour[];
 }
 
-export function FilterPanel({ filters, onChange }: Props) {
+export function FilterPanel({ filters, onChange, allTours }: Props) {
   const update = (partial: Partial<Filters>) => {
     onChange({ ...filters, ...partial });
   };
@@ -26,6 +34,29 @@ export function FilterPanel({ filters, onChange }: Props) {
       : filters.type === 'tour_planned'
         ? '📋 Planned'
         : '⊘ All';
+
+  /** Sports sorted by occurrence count descending, computed once from allTours. */
+  const sortedSports = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of allTours) {
+      counts.set(t.sport, (counts.get(t.sport) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([sport]) => sport);
+  }, [allTours]);
+
+  const toggleSport = (sport: string) => {
+    const next = filters.sports.includes(sport)
+      ? filters.sports.filter((s) => s !== sport)
+      : [...filters.sports, sport];
+    update({ sports: next });
+  };
+
+  const getSportLabel = (sport: string): string => SPORT_LABELS[sport] || sport;
+
+  const getSportIcon = (sport: string): string =>
+    (SPORT_ICONS as Record<string, string>)[sport] || '🏃';
 
   return (
     <div class={styles.wrapper}>
@@ -75,6 +106,7 @@ export function FilterPanel({ filters, onChange }: Props) {
           </div>
         </div>
 
+        {/* Date range: From and To on one row */}
         <div class={styles.row}>
           <span class={styles.label}>From</span>
           <input
@@ -85,9 +117,7 @@ export function FilterPanel({ filters, onChange }: Props) {
               update({ startDate: e.currentTarget.value })
             }
           />
-        </div>
-        <div class={styles.row}>
-          <span class={styles.label}>To</span>
+          <span class={styles.dateSep}>To</span>
           <input
             class={styles.dateInput}
             type="date"
@@ -97,6 +127,25 @@ export function FilterPanel({ filters, onChange }: Props) {
             }
           />
         </div>
+
+        {/* Sport multi-select */}
+        {sortedSports.length > 0 && (
+          <div class={styles.row}>
+            <span class={styles.label}>Sport</span>
+            <div class={styles.sportChips}>
+              {sortedSports.map((sport) => (
+                <button
+                  key={sport}
+                  class={`${styles.sportChip} ${filters.sports.includes(sport) ? styles.active : ''}`}
+                  onClick={() => toggleSport(sport)}
+                  title={getSportLabel(sport)}
+                >
+                  {getSportIcon(sport)} {getSportLabel(sport)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div class={styles.row}>
           <span class={styles.label}>Sort</span>

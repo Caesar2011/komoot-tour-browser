@@ -18,6 +18,7 @@ export interface Filters {
   sortField: SortField;
   sortDirection: SortDirection;
   nameQuery: string;
+  sports: string[];
 }
 
 export const DEFAULT_FILTERS: Filters = {
@@ -30,6 +31,7 @@ export const DEFAULT_FILTERS: Filters = {
   sortField: 'date',
   sortDirection: 'desc',
   nameQuery: '',
+  sports: [],
 };
 
 export interface Coordinate {

@@ -15,6 +15,7 @@ import {
   formatDate,
   formatDist,
   formatDur,
+  isOwnTour,
   resolveCoverImageUrl,
   sportIcon,
 } from '../../../logic/utils.ts';
@@ -41,13 +42,6 @@ interface Props {
   onDeleteTour: (tour: Tour) => void;
   lastExportFormat: ExportFormat;
   onSetExportFormat: (f: ExportFormat) => void;
-}
-
-function isOwnTour(tour: Tour): boolean {
-  const userId = Api.userId;
-  if (!userId) return false;
-  const creatorId = tour._embedded?.creator?.username;
-  return !creatorId || creatorId === userId;
 }
 
 function getTourOwner(tour: Tour): string {
@@ -89,7 +83,7 @@ export function TourDetail({
   onSetExportFormat,
 }: Props) {
   const isRecorded = tour.type === 'tour_recorded';
-  const owned = isOwnTour(tour);
+  const owned = isOwnTour(tour, Api.userId);
   const [patchError, setPatchError] = useState('');
   const [downloading, setDownloading] = useState<ExportFormat | null>(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
@@ -201,6 +195,8 @@ export function TourDetail({
           <button
             class={styles.actionBtn}
             onClick={() => onRename(tour)}
+            disabled={!owned}
+            title={owned ? 'Rename' : 'You can only rename your own tours'}
             tabIndex={0}
           >
             ✏️ Rename

@@ -10,6 +10,7 @@ import { useSidebarSelection } from '../hooks/useSidebarSelection.ts';
 import { useBulkOperations } from '../hooks/useBulkOperations.ts';
 import { useDragDrop } from '../hooks/useDragDrop.ts';
 import { Api, ForbiddenError } from '../logic/api.ts';
+import { isOwnTour } from '../logic/utils.ts';
 import { resolveEffectiveTours } from '../logic/selection.ts';
 import { komootTourUrl, komootFolderUrl } from '../logic/komoot.ts';
 import { collectTours, findNode } from '../logic/tree.ts';
@@ -41,12 +42,10 @@ export function App() {
   const [lastExportFormat, setLastExportFormat] = useState<ExportFormat>('gpx');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteTargetTours, setDeleteTargetTours] = useState<Tour[]>([]);
-  // Fallback rename for tours not visible in sidebar tree
   const [fallbackRenameTour, setFallbackRenameTour] = useState<Tour | null>(
     null,
   );
 
-  // Drag & Drop
   const handleDrop = useCallback(
     (targetPath: string) => {
       bulk.bulkMove(sidebarSel.selected, targetPath, () => {
@@ -113,7 +112,6 @@ export function App() {
     [sel],
   );
 
-  // Bulk delete: show confirm dialog
   const handleBulkDelete = useCallback(() => {
     const effectiveTours = resolveEffectiveTours(
       sidebarSel.selected,
@@ -136,7 +134,6 @@ export function App() {
     });
   }, [bulk, sidebarSel, sel, deleteTargetTours]);
 
-  // Bulk export
   const handleBulkExport = useCallback(
     (format: ExportFormat) => {
       const effectiveTours = resolveEffectiveTours(
@@ -148,7 +145,6 @@ export function App() {
     [sidebarSel.selected, tours.tree, bulk],
   );
 
-  // Open in Komoot
   const handleOpenInKomoot = useCallback(() => {
     for (const item of sidebarSel.selected.values()) {
       if (item.type === 'tour' && item.tourId != null) {
@@ -164,7 +160,6 @@ export function App() {
     }
   }, [sidebarSel.selected, tours.tree]);
 
-  // Inline rename handlers
   const handleInlineRename = useCallback(
     async (tour: Tour, newName: string) => {
       await rename.handleInlineRename(tour, newName);
@@ -180,22 +175,22 @@ export function App() {
     [rename, tours.tree],
   );
 
-  // Single-tour delete from detail panel
   const handleDeleteTourFromDetail = useCallback((tour: Tour) => {
     setDeleteTargetTours([tour]);
     setShowDeleteDialog(true);
   }, []);
 
-  // Detail panel rename: try inline, fall back to prompt
   const handleRenameFromDetail = useCallback(
     (tour: Tour) => {
+      // Only allow renaming owned tours
+      if (!isOwnTour(tour, Api.userId)) return;
+
       const item = sidebarSel.flatItems.find(
         (fi) => fi.type === 'tour' && fi.tour?.id === tour.id,
       );
       if (item) {
         sidebarSel.startRenameFor(item);
       } else {
-        // Tour not visible in sidebar — use a simple prompt fallback
         setFallbackRenameTour(tour);
       }
     },
@@ -256,6 +251,7 @@ export function App() {
             tree={tours.tree}
             tourCount={tours.filteredTours.length}
             filters={tours.filters}
+            allTours={tours.allTours}
             onFiltersChange={tours.handleFiltersChange}
             onTogglePath={sel.handleTogglePath}
             onOpenPath={sel.openPath}
@@ -325,7 +321,6 @@ export function App() {
           {tours.error}
         </div>
       )}
-      {/* Delete confirmation dialog */}
       {showDeleteDialog && (
         <ConfirmDialog
           title={
@@ -345,7 +340,6 @@ export function App() {
           bulkInfo={deleteTargetTours.length > 1 ? deleteStats : undefined}
         />
       )}
-      {/* Fallback rename dialog for tours not visible in tree */}
       {fallbackRenameTour && (
         <FallbackRenameDialog
           tourName={fallbackRenameTour.name}
@@ -353,7 +347,6 @@ export function App() {
           onCancel={() => setFallbackRenameTour(null)}
         />
       )}
-      {/* Bulk progress */}
       {bulk.progress && (
         <BulkProgressDialog
           progress={bulk.progress}

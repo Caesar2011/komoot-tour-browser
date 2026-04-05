@@ -2,11 +2,10 @@
   flex-shrink: 0;
   border-top: 1px solid var(--c-border);
   background: var(--c-primary-light);
-  padding: 8px 12px;
+  padding: 6px 12px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   animation: slideUp 150ms ease;
 }
 
@@ -28,7 +27,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
 }
 
 .actions {
