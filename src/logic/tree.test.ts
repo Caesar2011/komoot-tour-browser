@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { Tour } from '../types.ts';
 
-import { buildTree, collectTours, countTours, findNode, flattenTree } from './tree.ts';
+import {
+  buildTree,
+  collectTours,
+  countTours,
+  findNode,
+  flattenTree,
+} from './tree.ts';
 
 function makeTour(name: string, id = 1): Tour {
   return {
@@ -85,7 +91,7 @@ describe('flattenTree', () => {
     expect(items.length).toBe(3);
     expect(items[0].type).toBe('folder'); // root
     expect(items[1].type).toBe('folder'); // Folder
-    expect(items[2].type).toBe('tour');   // B
+    expect(items[2].type).toBe('tour'); // B
   });
 
   it('includes nested items when subfolder is open', () => {
@@ -103,7 +109,9 @@ describe('flattenTree', () => {
       makeTour('A / Tour2', 2),
     ]);
     const items = flattenTree(tree, new Set(['', 'A', 'A/B']));
-    const types = items.map((i) => (i.type === 'tour' ? `tour:${i.tour!.id}` : `folder:${i.path}`));
+    const types = items.map((i) =>
+      i.type === 'tour' ? `tour:${i.tour!.id}` : `folder:${i.path}`,
+    );
     expect(types).toEqual([
       'folder:',
       'folder:A',

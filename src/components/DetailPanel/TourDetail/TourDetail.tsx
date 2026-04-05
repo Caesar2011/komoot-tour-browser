@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import type {
   Coordinate,
   CoverImage,
+  ExportFormat,
   SurfaceSegment,
   TimelineEntry,
   Tour,
@@ -38,6 +39,8 @@ interface Props {
   onDownloadGpx: (tourId: number, name: string) => Promise<void>;
   onDownloadFit: (tourId: number, name: string) => Promise<void>;
   onDeleteTour: (tour: Tour) => void;
+  lastExportFormat: ExportFormat;
+  onSetExportFormat: (f: ExportFormat) => void;
 }
 
 function isOwnTour(tour: Tour): boolean {
@@ -48,12 +51,12 @@ function isOwnTour(tour: Tour): boolean {
 }
 
 function getTourOwner(tour: Tour): string {
-  if (tour._embedded?.creator?.display_name) return tour._embedded.creator.display_name;
+  if (tour._embedded?.creator?.display_name)
+    return tour._embedded.creator.display_name;
   if (tour._embedded?.creator?.username) return tour._embedded.creator.username;
   return Api.displayName || Api.userId || '–';
 }
 
-/** Resolve a templated image src. */
 function resolveTemplatedSrc(
   src: string,
   templated?: boolean,
@@ -82,11 +85,14 @@ export function TourDetail({
   onDownloadGpx,
   onDownloadFit,
   onDeleteTour,
+  lastExportFormat,
+  onSetExportFormat,
 }: Props) {
   const isRecorded = tour.type === 'tour_recorded';
   const owned = isOwnTour(tour);
   const [patchError, setPatchError] = useState('');
-  const [downloading, setDownloading] = useState<'gpx' | 'fit' | null>(null);
+  const [downloading, setDownloading] = useState<ExportFormat | null>(null);
+  const [showFormatMenu, setShowFormatMenu] = useState(false);
 
   const handleStatusChange = async (newStatus: TourStatus) => {
     if (newStatus === tour.status) return;
@@ -108,7 +114,7 @@ export function TourDetail({
     }
   };
 
-  const handleDownload = async (format: 'gpx' | 'fit') => {
+  const handleDownload = async (format: ExportFormat) => {
     setDownloading(format);
     try {
       if (format === 'gpx') await onDownloadGpx(tour.id, tour.name);
@@ -118,6 +124,16 @@ export function TourDetail({
     } finally {
       setDownloading(null);
     }
+  };
+
+  const handleExportClick = () => {
+    handleDownload(lastExportFormat);
+  };
+
+  const handleFormatSelect = (format: ExportFormat) => {
+    onSetExportFormat(format);
+    handleDownload(format);
+    setShowFormatMenu(false);
   };
 
   const stats: [string, string][] = [
@@ -168,7 +184,8 @@ export function TourDetail({
             {sportIcon(tour.sport)} {tour.name || 'Unnamed'}
           </div>
           <div class={styles.subtitle}>
-            {isRecorded ? '✅ Recorded' : '📋 Planned'} · {tourOwner} · {formatDate(tour.date)}
+            {isRecorded ? '✅ Recorded' : '📋 Planned'} · {tourOwner} ·{' '}
+            {formatDate(tour.date)}
           </div>
         </div>
         <div class={styles.actions}>
@@ -181,25 +198,47 @@ export function TourDetail({
           >
             🔗 Komoot
           </a>
-          <button class={styles.actionBtn} onClick={() => onRename(tour)} tabIndex={0}>
+          <button
+            class={styles.actionBtn}
+            onClick={() => onRename(tour)}
+            tabIndex={0}
+          >
             ✏️ Rename
           </button>
-          <button
-            class={styles.actionBtn}
-            onClick={() => handleDownload('gpx')}
-            disabled={downloading === 'gpx'}
-            tabIndex={0}
-          >
-            {downloading === 'gpx' ? '⏳' : '📥'} GPX
-          </button>
-          <button
-            class={styles.actionBtn}
-            onClick={() => handleDownload('fit')}
-            disabled={downloading === 'fit'}
-            tabIndex={0}
-          >
-            {downloading === 'fit' ? '⏳' : '📥'} FIT
-          </button>
+          <div class={styles.splitExport}>
+            <button
+              class={styles.actionBtn}
+              onClick={handleExportClick}
+              disabled={downloading != null}
+              tabIndex={0}
+            >
+              {downloading === lastExportFormat ? '⏳' : '📥'}{' '}
+              {lastExportFormat.toUpperCase()}
+            </button>
+            <button
+              class={styles.splitArrow}
+              onClick={() => setShowFormatMenu(!showFormatMenu)}
+              title="Choose format"
+            >
+              ▾
+            </button>
+            {showFormatMenu && (
+              <div class={styles.formatMenu}>
+                <button
+                  class={`${styles.formatOption} ${lastExportFormat === 'gpx' ? styles.formatActive : ''}`}
+                  onClick={() => handleFormatSelect('gpx')}
+                >
+                  GPX
+                </button>
+                <button
+                  class={`${styles.formatOption} ${lastExportFormat === 'fit' ? styles.formatActive : ''}`}
+                  onClick={() => handleFormatSelect('fit')}
+                >
+                  FIT
+                </button>
+              </div>
+            )}
+          </div>
           <button
             class={`${styles.actionBtn} ${styles.deleteBtn}`}
             onClick={() => onDeleteTour(tour)}

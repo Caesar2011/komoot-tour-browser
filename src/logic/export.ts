@@ -1,10 +1,10 @@
 import type { Tour } from '../types.ts';
+
 import { Api } from './api.ts';
 import { triggerDownload } from './utils.ts';
 
 /** Dynamically import JSZip (must be installed as dependency). */
-async function getJSZip(): Promise<typeof import('jszip')> {
-  // @ts-ignore — dynamic import
+async function getJSZip() {
   return await import('jszip');
 }
 

@@ -251,6 +251,22 @@ export function useSelection(
     [showTourDetail],
   );
 
+  /** Activate from the sidebar selection system. */
+  const handleActivateItem = useCallback(
+    async (type: 'folder' | 'tour', path: string, tourId?: number) => {
+      if (type === 'folder') {
+        await handleSelectFolder(path);
+      } else if (tourId != null) {
+        const tour = allTours.find((t) => t.id === tourId);
+        if (tour) {
+          setSelection({ type: 'tour', tourId: tour.id, folderContext: null });
+          await showTourDetail(tour, null);
+        }
+      }
+    },
+    [allTours, handleSelectFolder, showTourDetail],
+  );
+
   const handleTrackClick = useCallback(
     (tourId: number) => {
       const tour =
@@ -385,6 +401,7 @@ export function useSelection(
     handleSelectFolder,
     handleSelectTourFromList,
     handleSelectTourFromTree,
+    handleActivateItem,
     handleTrackClick,
     handleTogglePath,
     openPath,

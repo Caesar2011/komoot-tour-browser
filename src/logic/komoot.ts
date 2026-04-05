@@ -1,4 +1,5 @@
 import type { Tour } from '../types.ts';
+
 import { Api } from './api.ts';
 
 const KOMOOT_BASE = 'https://www.komoot.com/de-de';

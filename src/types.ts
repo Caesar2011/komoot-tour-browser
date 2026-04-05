@@ -75,7 +75,6 @@ export interface Tour {
   };
 }
 
-/** Timeline item as returned by GET /v007/tours/{id}/timeline/ */
 export interface TimelineEntry {
   index: number;
   type: string;
@@ -91,7 +90,6 @@ export interface TimelineEntry {
   };
 }
 
-/** Cover image as returned by GET /v007/tours/{id}/cover_images/ */
 export interface CoverImage {
   src: string;
   templated?: boolean;
@@ -99,14 +97,12 @@ export interface CoverImage {
   attribution?: string;
 }
 
-/** Segment from GET /v007/tours/{id}/way_types — uses `element` with `wt#` prefix */
 export interface WayTypeSegment {
   from: number;
   to: number;
   element: string;
 }
 
-/** Segment from GET /v007/tours/{id}/surfaces — uses `element` with `sb#` prefix */
 export interface SurfaceSegment {
   from: number;
   to: number;
@@ -175,10 +171,43 @@ export interface LoginApiResponse {
   };
 }
 
-/** Represents a single sidebar item for keyboard navigation. */
 export interface SidebarItem {
   type: 'folder' | 'tour';
   path: string;
   tour?: Tour;
   depth: number;
+}
+
+// --- Selection model ---
+
+export type SelectionItemKey = string;
+
+export interface SelectionItem {
+  type: 'folder' | 'tour';
+  path: string;
+  tourId?: number;
+}
+
+export type ExportFormat = 'gpx' | 'fit';
+
+// --- Bulk operation progress ---
+
+export interface BulkProgress {
+  title: string;
+  current: number;
+  total: number;
+  cancelled: boolean;
+}
+
+export interface BulkResult {
+  success: number;
+  failed: number;
+  errors: string[];
+}
+
+export interface ToastMessage {
+  id: number;
+  type: 'success' | 'error';
+  text: string;
+  persistent: boolean;
 }

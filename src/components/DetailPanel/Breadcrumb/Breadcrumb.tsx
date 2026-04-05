@@ -36,7 +36,9 @@ export function Breadcrumb({ path, onNavigate }: Props) {
               tabIndex={0}
               role="button"
               onClick={() => onNavigate(accumulated)}
-              onKeyDown={(e) => handleKeyDown(e as unknown as KeyboardEvent, accumulated)}
+              onKeyDown={(e) =>
+                handleKeyDown(e as unknown as KeyboardEvent, accumulated)
+              }
             >
               {part}
             </span>

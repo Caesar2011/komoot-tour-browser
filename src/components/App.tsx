@@ -1,12 +1,18 @@
 import { useCallback, useState } from 'preact/hooks';
 
-import type { Tour, TourStatus } from '../types.ts';
+import type { ExportFormat, Tour, TourStatus } from '../types.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useTours } from '../hooks/useTours.ts';
 import { useSelection } from '../hooks/useSelection.ts';
 import { useRename } from '../hooks/useRename.ts';
 import { useUpload } from '../hooks/useUpload.ts';
+import { useSidebarSelection } from '../hooks/useSidebarSelection.ts';
+import { useBulkOperations } from '../hooks/useBulkOperations.ts';
+import { useDragDrop } from '../hooks/useDragDrop.ts';
 import { Api, ForbiddenError } from '../logic/api.ts';
+import { resolveEffectiveTours } from '../logic/selection.ts';
+import { komootTourUrl, komootFolderUrl } from '../logic/komoot.ts';
+import { collectTours, findNode } from '../logic/tree.ts';
 
 import { LoadingOverlay } from './LoadingOverlay/LoadingOverlay.tsx';
 import { LoginScreen } from './LoginScreen/LoginScreen.tsx';
@@ -14,9 +20,10 @@ import { AppHeader } from './AppHeader/AppHeader.tsx';
 import { Sidebar } from './Sidebar/Sidebar.tsx';
 import { MapView } from './MapView/MapView.tsx';
 import { DetailPanel } from './DetailPanel/DetailPanel.tsx';
-import { RenameDialog } from './RenameDialog/RenameDialog.tsx';
 import { UploadDialog } from './UploadDialog/UploadDialog.tsx';
 import { ConfirmDialog } from './ConfirmDialog/ConfirmDialog.tsx';
+import { BulkProgressDialog } from './BulkProgressDialog/BulkProgressDialog.tsx';
+import { ToastContainer } from './ToastContainer/ToastContainer.tsx';
 
 export function App() {
   const auth = useAuth();
@@ -24,14 +31,43 @@ export function App() {
   const sel = useSelection(tours.tree, tours.allTours, auth.handleAuthError);
   const rename = useRename(tours.applyTourUpdate, sel.updateDetailTour);
   const upload = useUpload(tours.addTour);
+  const sidebarSel = useSidebarSelection(tours.tree, sel.openPaths);
+  const bulk = useBulkOperations(
+    tours.tree,
+    tours.applyTourUpdate,
+    tours.removeTour,
+  );
 
-  const [deletingTour, setDeletingTour] = useState<Tour | null>(null);
-  const [deleteError, setDeleteError] = useState('');
+  const [lastExportFormat, setLastExportFormat] = useState<ExportFormat>('gpx');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTargetTours, setDeleteTargetTours] = useState<Tour[]>([]);
+  // Fallback rename for tours not visible in sidebar tree
+  const [fallbackRenameTour, setFallbackRenameTour] = useState<Tour | null>(
+    null,
+  );
+
+  // Drag & Drop
+  const handleDrop = useCallback(
+    (targetPath: string) => {
+      bulk.bulkMove(sidebarSel.selected, targetPath, () => {
+        sidebarSel.clearSelection();
+      });
+    },
+    [bulk, sidebarSel],
+  );
+
+  const dragDrop = useDragDrop(
+    sidebarSel.selected,
+    sidebarSel.selectOnly,
+    sidebarSel.toggleSelect,
+    handleDrop,
+  );
 
   const handleLogout = useCallback(() => {
     sel.reset();
+    sidebarSel.clearSelection();
     auth.handleLogout();
-  }, [sel, auth]);
+  }, [sel, sidebarSel, auth]);
 
   const handlePatchTour = useCallback(
     async (
@@ -70,32 +106,113 @@ export function App() {
     [],
   );
 
-  const handleDeleteTour = useCallback((tour: Tour) => {
-    setDeletingTour(tour);
-    setDeleteError('');
-  }, []);
+  const handleActivateItem = useCallback(
+    async (type: 'folder' | 'tour', path: string, tourId?: number) => {
+      await sel.handleActivateItem(type, path, tourId);
+    },
+    [sel],
+  );
 
-  const handleConfirmDelete = useCallback(async () => {
-    if (!deletingTour) return;
-    try {
-      await Api.deleteTour(deletingTour.id);
-      tours.removeTour(deletingTour.id);
-      // If we were viewing this tour, clear the detail
-      if (sel.detailTour?.id === deletingTour.id) {
-        sel.clearDetail();
+  // Bulk delete: show confirm dialog
+  const handleBulkDelete = useCallback(() => {
+    const effectiveTours = resolveEffectiveTours(
+      sidebarSel.selected,
+      tours.tree,
+    );
+    if (effectiveTours.length === 0) return;
+    setDeleteTargetTours(effectiveTours);
+    setShowDeleteDialog(true);
+  }, [sidebarSel.selected, tours.tree]);
+
+  const handleConfirmDelete = useCallback(() => {
+    setShowDeleteDialog(false);
+    const toursToDelete = [...deleteTargetTours];
+    bulk.bulkDelete(sidebarSel.selected, () => {
+      sidebarSel.clearSelection();
+      if (sel.detailTour) {
+        const deleted = toursToDelete.some((t) => t.id === sel.detailTour!.id);
+        if (deleted) sel.clearDetail();
       }
-      setDeletingTour(null);
-    } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : String(e));
-    }
-  }, [deletingTour, tours, sel]);
+    });
+  }, [bulk, sidebarSel, sel, deleteTargetTours]);
 
-  const handleFolderRenameSave = useCallback(
-    async (newFolderName: string) => {
-      if (!rename.renamingFolder || !tours.tree) return;
-      await rename.handleFolderRename(rename.renamingFolder, newFolderName, tours.tree);
+  // Bulk export
+  const handleBulkExport = useCallback(
+    (format: ExportFormat) => {
+      const effectiveTours = resolveEffectiveTours(
+        sidebarSel.selected,
+        tours.tree,
+      );
+      bulk.bulkExport(effectiveTours, format);
+    },
+    [sidebarSel.selected, tours.tree, bulk],
+  );
+
+  // Open in Komoot
+  const handleOpenInKomoot = useCallback(() => {
+    for (const item of sidebarSel.selected.values()) {
+      if (item.type === 'tour' && item.tourId != null) {
+        window.open(komootTourUrl(item.tourId), '_blank');
+      } else if (item.type === 'folder') {
+        const node = tours.tree ? findNode(tours.tree, item.path) : null;
+        const folderTours = node ? collectTours(node) : [];
+        const folderName = item.path
+          ? item.path.split('/').pop()!
+          : 'All Tours';
+        window.open(komootFolderUrl(folderName, folderTours), '_blank');
+      }
+    }
+  }, [sidebarSel.selected, tours.tree]);
+
+  // Inline rename handlers
+  const handleInlineRename = useCallback(
+    async (tour: Tour, newName: string) => {
+      await rename.handleInlineRename(tour, newName);
+    },
+    [rename],
+  );
+
+  const handleFolderRename = useCallback(
+    async (oldPath: string, newName: string) => {
+      if (!tours.tree) return;
+      await rename.handleFolderRename(oldPath, newName, tours.tree);
     },
     [rename, tours.tree],
+  );
+
+  // Single-tour delete from detail panel
+  const handleDeleteTourFromDetail = useCallback((tour: Tour) => {
+    setDeleteTargetTours([tour]);
+    setShowDeleteDialog(true);
+  }, []);
+
+  // Detail panel rename: try inline, fall back to prompt
+  const handleRenameFromDetail = useCallback(
+    (tour: Tour) => {
+      const item = sidebarSel.flatItems.find(
+        (fi) => fi.type === 'tour' && fi.tour?.id === tour.id,
+      );
+      if (item) {
+        sidebarSel.startRenameFor(item);
+      } else {
+        // Tour not visible in sidebar — use a simple prompt fallback
+        setFallbackRenameTour(tour);
+      }
+    },
+    [sidebarSel],
+  );
+
+  const handleFallbackRenameSave = useCallback(
+    async (newName: string) => {
+      if (!fallbackRenameTour) return;
+      try {
+        await rename.handleInlineRename(fallbackRenameTour, newName);
+      } catch {
+        // ignore
+      }
+      setFallbackRenameTour(null);
+    },
+    [fallbackRenameTour, rename],
   );
 
   const isLoading = tours.loading || sel.loading;
@@ -110,9 +227,22 @@ export function App() {
     );
   }
 
+  const deleteStats =
+    deleteTargetTours.length > 0
+      ? {
+          tourCount: deleteTargetTours.length,
+          totalDistance: deleteTargetTours.reduce((s, t) => s + t.distance, 0),
+          totalDuration: deleteTargetTours.reduce((s, t) => s + t.duration, 0),
+          confirmText: 'delete',
+        }
+      : undefined;
+
   return (
     <>
-      <LoadingOverlay visible={isLoading} text={loadingText} />
+      <LoadingOverlay
+        visible={isLoading && !bulk.progress}
+        text={loadingText}
+      />
       <div
         style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}
       >
@@ -125,18 +255,22 @@ export function App() {
           <Sidebar
             tree={tours.tree}
             tourCount={tours.filteredTours.length}
-            selection={sel.selection}
-            openPaths={sel.openPaths}
             filters={tours.filters}
             onFiltersChange={tours.handleFiltersChange}
-            onSelectFolder={sel.handleSelectFolder}
-            onSelectTour={sel.handleSelectTourFromTree}
             onTogglePath={sel.handleTogglePath}
             onOpenPath={sel.openPath}
             onClosePath={sel.closePath}
-            onRenameTour={rename.setRenamingTour}
-            onRenameFolder={rename.setRenamingFolder}
-            onDeleteTour={handleDeleteTour}
+            openPaths={sel.openPaths}
+            sidebarSel={sidebarSel}
+            dragDrop={dragDrop}
+            onActivateItem={handleActivateItem}
+            onBulkDelete={handleBulkDelete}
+            onBulkExport={handleBulkExport}
+            onOpenInKomoot={handleOpenInKomoot}
+            onInlineRename={handleInlineRename}
+            onFolderRename={handleFolderRename}
+            lastExportFormat={lastExportFormat}
+            onSetExportFormat={setLastExportFormat}
           />
           <div
             style={{
@@ -159,11 +293,13 @@ export function App() {
               surfaces={sel.detailSurfaces}
               onSelectFolder={sel.handleSelectFolder}
               onSelectTour={sel.handleSelectTourFromList}
-              onRename={rename.setRenamingTour}
+              onRename={handleRenameFromDetail}
               onPatchTour={handlePatchTour}
               onDownloadGpx={handleDownloadGpx}
               onDownloadFit={handleDownloadFit}
-              onDeleteTour={handleDeleteTour}
+              onDeleteTour={handleDeleteTourFromDetail}
+              lastExportFormat={lastExportFormat}
+              onSetExportFormat={setLastExportFormat}
             />
           </div>
         </div>
@@ -189,31 +325,39 @@ export function App() {
           {tours.error}
         </div>
       )}
-      {/* Tour rename dialog */}
-      {rename.renamingTour && (
-        <RenameDialog
-          tour={rename.renamingTour}
-          onSave={rename.handleRenameSave}
-          onClose={() => rename.setRenamingTour(null)}
-        />
-      )}
-      {/* Folder rename dialog */}
-      {rename.renamingFolder !== null && (
-        <RenameDialog
-          folder={rename.renamingFolder}
-          onSave={handleFolderRenameSave}
-          onClose={() => rename.setRenamingFolder(null)}
-        />
-      )}
       {/* Delete confirmation dialog */}
-      {deletingTour && (
+      {showDeleteDialog && (
         <ConfirmDialog
-          title="🗑️ Delete Tour"
-          message={`Are you sure you want to delete "${deletingTour.name || 'Unnamed'}"? This action cannot be undone.${deleteError ? '\n\nError: ' + deleteError : ''}`}
+          title={
+            deleteTargetTours.length === 1
+              ? '🗑️ Delete Tour'
+              : `🗑️ Delete ${deleteTargetTours.length} Tours`
+          }
+          message={
+            deleteTargetTours.length === 1
+              ? `Are you sure you want to delete "${deleteTargetTours[0]?.name || 'Unnamed'}"?`
+              : `Are you sure you want to delete ${deleteTargetTours.length} tours?`
+          }
           confirmLabel="Delete"
           cancelLabel="Cancel"
           onConfirm={handleConfirmDelete}
-          onCancel={() => setDeletingTour(null)}
+          onCancel={() => setShowDeleteDialog(false)}
+          bulkInfo={deleteTargetTours.length > 1 ? deleteStats : undefined}
+        />
+      )}
+      {/* Fallback rename dialog for tours not visible in tree */}
+      {fallbackRenameTour && (
+        <FallbackRenameDialog
+          tourName={fallbackRenameTour.name}
+          onSave={handleFallbackRenameSave}
+          onCancel={() => setFallbackRenameTour(null)}
+        />
+      )}
+      {/* Bulk progress */}
+      {bulk.progress && (
+        <BulkProgressDialog
+          progress={bulk.progress}
+          onCancel={bulk.cancelOperation}
         />
       )}
       {upload.showUpload && (
@@ -224,6 +368,107 @@ export function App() {
           onClose={() => upload.setShowUpload(false)}
         />
       )}
+      <ToastContainer toasts={bulk.toasts} onDismiss={bulk.dismissToast} />
     </>
+  );
+}
+
+/** Minimal fallback rename dialog when inline rename isn't possible. */
+function FallbackRenameDialog({
+  tourName,
+  onSave,
+  onCancel,
+}: {
+  tourName: string;
+  onSave: (newName: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(tourName);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === tourName) {
+      onCancel();
+      return;
+    }
+    setSaving(true);
+    await onSave(trimmed);
+    setSaving(false);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.4)',
+        zIndex: 9998,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+    >
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          padding: 28,
+          width: 480,
+          maxWidth: '90vw',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+        }}
+      >
+        <h3 style={{ fontSize: 16, marginBottom: 16 }}>✏️ Rename Tour</h3>
+        <input
+          class="form-input"
+          type="text"
+          value={value}
+          onInput={(e) => setValue((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') onCancel();
+          }}
+          style={{ marginBottom: 16 }}
+          autoFocus
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              border: 'none',
+              background: '#f3f4f6',
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              border: 'none',
+              background: '#4a6cf7',
+              color: '#fff',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.5 : 1,
+            }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

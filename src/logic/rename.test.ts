@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Tour } from '../types.ts';
-import { buildTree } from './tree.ts';
 
+import { buildTree } from './tree.ts';
 import {
   computeFolderRenames,
   computeFullPathRenames,
@@ -35,9 +35,7 @@ describe('pathToTourPrefix', () => {
   });
 
   it('converts deeply nested path', () => {
-    expect(pathToTourPrefix('Europe/Alps/Tyrol')).toBe(
-      'Europe / Alps / Tyrol',
-    );
+    expect(pathToTourPrefix('Europe/Alps/Tyrol')).toBe('Europe / Alps / Tyrol');
   });
 });
 
@@ -71,9 +69,9 @@ describe('replaceTourNamePrefix', () => {
   });
 
   it('handles single-segment prefix', () => {
-    expect(
-      replaceTourNamePrefix('Alps / Summit', 'Alps', 'Mountains'),
-    ).toBe('Mountains / Summit');
+    expect(replaceTourNamePrefix('Alps / Summit', 'Alps', 'Mountains')).toBe(
+      'Mountains / Summit',
+    );
   });
 });
 
@@ -126,9 +124,7 @@ describe('computeFolderRenames', () => {
 
     expect(results).toHaveLength(2);
     expect(results.find((r) => r.tourId === 1)!.newName).toBe('X / Tour 1');
-    expect(results.find((r) => r.tourId === 2)!.newName).toBe(
-      'X / D / Tour 2',
-    );
+    expect(results.find((r) => r.tourId === 2)!.newName).toBe('X / D / Tour 2');
   });
 
   it('returns empty for nonexistent path', () => {
@@ -169,10 +165,7 @@ describe('computeFullPathRenames', () => {
   });
 
   it('handles root-level rename', () => {
-    const tours = [
-      makeTour('Folder / A', 1),
-      makeTour('Folder / B', 2),
-    ];
+    const tours = [makeTour('Folder / A', 1), makeTour('Folder / B', 2)];
     const results = computeFullPathRenames('Folder', 'NewFolder', tours);
 
     expect(results).toHaveLength(2);
@@ -181,9 +174,7 @@ describe('computeFullPathRenames', () => {
   });
 
   it('preserves deep structure on intermediate rename', () => {
-    const tours = [
-      makeTour('A / B / C / D / Tour', 1),
-    ];
+    const tours = [makeTour('A / B / C / D / Tour', 1)];
     const results = computeFullPathRenames('A/B', 'A/X', tours);
 
     expect(results).toHaveLength(1);

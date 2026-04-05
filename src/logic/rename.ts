@@ -1,4 +1,5 @@
 import type { Tour, TreeNode } from '../types.ts';
+
 import { collectTours, findNode } from './tree.ts';
 
 /** Result of a folder rename: the tour id and its new full name. */

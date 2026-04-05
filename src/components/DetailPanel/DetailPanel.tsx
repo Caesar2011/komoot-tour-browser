@@ -1,6 +1,7 @@
 import type {
   Coordinate,
   CoverImage,
+  ExportFormat,
   FolderContext,
   Selection,
   SurfaceSegment,
@@ -35,6 +36,8 @@ interface Props {
   onDownloadGpx: (tourId: number, name: string) => Promise<void>;
   onDownloadFit: (tourId: number, name: string) => Promise<void>;
   onDeleteTour: (tour: Tour) => void;
+  lastExportFormat: ExportFormat;
+  onSetExportFormat: (f: ExportFormat) => void;
 }
 
 export function DetailPanel({
@@ -54,6 +57,8 @@ export function DetailPanel({
   onDownloadGpx,
   onDownloadFit,
   onDeleteTour,
+  lastExportFormat,
+  onSetExportFormat,
 }: Props) {
   if (!selection) {
     return (
@@ -123,6 +128,8 @@ export function DetailPanel({
             onDownloadGpx={onDownloadGpx}
             onDownloadFit={onDownloadFit}
             onDeleteTour={onDeleteTour}
+            lastExportFormat={lastExportFormat}
+            onSetExportFormat={onSetExportFormat}
           />
         )}
       </div>

@@ -40,7 +40,6 @@ export function FilterPanel({ filters, onChange }: Props) {
         Filters & Sort
       </label>
       <div class={styles.panel}>
-        {/* Type toggle */}
         <div class={styles.row}>
           <span class={styles.label}>Type</span>
           <button
@@ -52,7 +51,6 @@ export function FilterPanel({ filters, onChange }: Props) {
           </button>
         </div>
 
-        {/* Status toggles — order matches tour detail: private, friends, public */}
         <div class={styles.row}>
           <span class={styles.label}>Status</span>
           <div class={styles.statusGroup}>
@@ -77,7 +75,6 @@ export function FilterPanel({ filters, onChange }: Props) {
           </div>
         </div>
 
-        {/* Date range */}
         <div class={styles.row}>
           <span class={styles.label}>From</span>
           <input
@@ -101,7 +98,6 @@ export function FilterPanel({ filters, onChange }: Props) {
           />
         </div>
 
-        {/* Sorting */}
         <div class={styles.row}>
           <span class={styles.label}>Sort</span>
           <select
