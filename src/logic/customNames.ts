@@ -9,6 +9,7 @@ import {
   type CustomNameRecord,
 } from './cache.ts';
 import { isOwnTour } from './utils.ts';
+import { numericId } from './tourName.ts';
 
 export { type CustomNameRecord };
 
@@ -28,7 +29,6 @@ export async function saveCustomName(
   name: string,
   updatedAt: number = Date.now(),
 ): Promise<void> {
-  // Always store tourId as a number, regardless of what the caller passes.
   const id = Number(tourId);
   if (name === '') {
     await cnDelete(id);
@@ -54,11 +54,6 @@ export async function setLastExportedAt(ts: number): Promise<void> {
 
 // ── out-of-sync detection ──────────────────────────────────────────────────
 
-/**
- * Returns true when there are unsaved changes:
- * - at least one entry exists AND lastExportedAt is missing, OR
- * - MAX(updatedAt) > lastExportedAt
- */
 export function computeIsDirty(
   records: CustomNameRecord[],
   lastExportedAt: number | undefined,
@@ -73,8 +68,7 @@ export function computeIsDirty(
 
 /**
  * Pre-process a tour list by substituting custom names for foreign tours.
- * `buildTree` and all downstream consumers receive the substituted list.
- * `allTours` in state is never mutated.
+ * Used before tree-building and filtering so the UI sees custom names.
  */
 export function applyCustomNames(
   tours: Tour[],
@@ -84,7 +78,7 @@ export function applyCustomNames(
   if (customNames.size === 0) return tours;
   return tours.map((tour) => {
     if (isOwnTour(tour, userId)) return tour;
-    const custom = customNames.get(tour.id);
+    const custom = customNames.get(numericId(tour));
     if (!custom) return tour;
     return { ...tour, name: custom };
   });
@@ -98,12 +92,10 @@ export interface ExportPayload {
   mappings: CustomNameRecord[];
 }
 
-/** Serialize all records to the export JSON format. */
 export function buildExportPayload(records: CustomNameRecord[]): ExportPayload {
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
-    // Ensure tourId is always serialized as a number.
     mappings: records.map((r) => ({ ...r, tourId: Number(r.tourId) })),
   };
 }
@@ -116,11 +108,6 @@ export interface ImportResult {
   skipped: number;
 }
 
-/**
- * Validate and parse a JSON import file.
- * Throws a descriptive Error on validation failure.
- * Accepts tourId as number or numeric string for forwards/backwards compatibility.
- */
 export function parseImportPayload(raw: unknown): ExportPayload {
   if (typeof raw !== 'object' || raw === null)
     throw new Error('Invalid file: not a JSON object');
@@ -131,31 +118,28 @@ export function parseImportPayload(raw: unknown): ExportPayload {
 
   const mappings: CustomNameRecord[] = [];
   for (const m of obj['mappings']) {
-    if (typeof m !== 'object' || m === null) {
+    if (typeof m !== 'object' || m === null)
       throw new Error('Invalid file: each mapping must be an object');
-    }
     const entry = m as Record<string, unknown>;
     const rawId = entry['tourId'];
-    const numericId = Number(rawId);
+    const numId = Number(rawId);
     if (
       (typeof rawId !== 'number' && typeof rawId !== 'string') ||
-      !Number.isFinite(numericId) ||
-      numericId <= 0
+      !Number.isFinite(numId) ||
+      numId <= 0
     ) {
       throw new Error(
         'Invalid file: each mapping must have a valid numeric tourId',
       );
     }
-    if (typeof entry['name'] !== 'string') {
+    if (typeof entry['name'] !== 'string')
       throw new Error('Invalid file: each mapping must have a string name');
-    }
-    if (typeof entry['updatedAt'] !== 'number') {
+    if (typeof entry['updatedAt'] !== 'number')
       throw new Error(
         'Invalid file: each mapping must have a numeric updatedAt',
       );
-    }
     mappings.push({
-      tourId: numericId,
+      tourId: numId,
       name: entry['name'],
       updatedAt: entry['updatedAt'],
     });
@@ -168,10 +152,6 @@ export function parseImportPayload(raw: unknown): ExportPayload {
   };
 }
 
-/**
- * Merge imported records with existing records using "newer wins" strategy.
- * Returns the result summary and the updated full records list.
- */
 export async function mergeImport(
   incoming: CustomNameRecord[],
   existing: CustomNameRecord[],

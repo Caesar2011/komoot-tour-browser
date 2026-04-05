@@ -11,11 +11,14 @@ import type {
   TreeNode,
 } from '../types.ts';
 import { Api } from '../logic/api.ts';
+import { isOwnTour } from '../logic/utils.ts';
+import { numericId } from '../logic/tourName.ts';
 import {
   resolveEffectiveTours,
   computeMoveRenames,
 } from '../logic/selection.ts';
 import { triggerDownload } from '../logic/utils.ts';
+import { collectTours } from '../logic/tree.ts';
 
 let toastIdCounter = 0;
 
@@ -37,6 +40,7 @@ export function useBulkOperations(
   tree: TreeNode | null,
   applyTourUpdate: (tourId: number, updates: Partial<Tour>) => void,
   removeTour: (tourId: number) => void,
+  setCustomName: (tourId: number, name: string) => Promise<void>,
 ) {
   const [progress, setProgress] = useState<BulkProgress | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -56,6 +60,13 @@ export function useBulkOperations(
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  /** Build a tourId→Tour lookup from the tree for ownership checks. */
+  const buildTourLookup = useCallback((): Map<number, Tour> => {
+    if (!tree) return new Map();
+    const all = collectTours(tree);
+    return new Map(all.map((t) => [numericId(t), t]));
+  }, [tree]);
 
   const bulkDelete = useCallback(
     async (
@@ -123,7 +134,12 @@ export function useBulkOperations(
       onComplete: () => void,
     ) => {
       const renames = computeMoveRenames(selected, targetPath, tree);
-      if (renames.length === 0) return;
+      if (renames.length === 0) {
+        onComplete();
+        return;
+      }
+
+      const tourLookup = buildTourLookup();
 
       cancelledRef.current = false;
       setProgress({
@@ -139,14 +155,22 @@ export function useBulkOperations(
 
       for (let i = 0; i < renames.length; i++) {
         if (cancelledRef.current) break;
+        const { tourId, newName } = renames[i];
+        const tour = tourLookup.get(numericId({ id: tourId }));
+        const owned = tour ? isOwnTour(tour, Api.userId) : true;
+
         try {
-          await Api.renameTour(renames[i].tourId, renames[i].newName);
-          applyTourUpdate(renames[i].tourId, { name: renames[i].newName });
+          if (owned) {
+            await Api.renameTour(tourId, newName);
+            applyTourUpdate(tourId, { name: newName });
+          } else {
+            await setCustomName(numericId({ id: tourId }), newName);
+          }
           success++;
         } catch (e) {
           failed++;
           errors.push(
-            `Tour ${renames[i].tourId}: ${e instanceof Error ? e.message : String(e)}`,
+            `Tour ${tourId}: ${e instanceof Error ? e.message : String(e)}`,
           );
         }
         setProgress((p) => (p ? { ...p, current: i + 1 } : null));
@@ -173,14 +197,13 @@ export function useBulkOperations(
 
       onComplete();
     },
-    [tree, applyTourUpdate, addToast],
+    [tree, applyTourUpdate, setCustomName, addToast, buildTourLookup],
   );
 
   const bulkExport = useCallback(
     async (tours: Tour[], format: ExportFormat) => {
       if (tours.length === 0) return;
 
-      // Single-tour fast path — no zip needed
       if (tours.length === 1) {
         const tour = tours[0];
         const safeName = (tour.name || 'tour').replace(

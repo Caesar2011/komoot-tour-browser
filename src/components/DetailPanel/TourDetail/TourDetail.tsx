@@ -22,6 +22,10 @@ import {
 } from '../../../logic/utils.ts';
 import { Api } from '../../../logic/api.ts';
 import { komootTourUrl } from '../../../logic/komoot.ts';
+import {
+  resolveDisplayName,
+  hasCustomName as checkCustomName,
+} from '../../../logic/tourName.ts';
 import { ElevationProfile } from '../ElevationProfile/ElevationProfile.tsx';
 
 import styles from './TourDetail.module.css';
@@ -91,7 +95,9 @@ export function TourDetail({
 }: Props) {
   const isRecorded = tour.type === 'tour_recorded';
   const owned = isOwnTour(tour, Api.userId);
-  const hasCustomName = !owned && customNames.has(tour.id);
+  const hasCustom = checkCustomName(tour, customNames, Api.userId);
+  const displayName = resolveDisplayName(tour, customNames);
+
   const [patchError, setPatchError] = useState('');
   const [downloading, setDownloading] = useState<ExportFormat | null>(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
@@ -120,8 +126,8 @@ export function TourDetail({
   const handleDownload = async (format: ExportFormat) => {
     setDownloading(format);
     try {
-      if (format === 'gpx') await onDownloadGpx(tour.id, tour.name);
-      else await onDownloadFit(tour.id, tour.name);
+      if (format === 'gpx') await onDownloadGpx(tour.id, displayName);
+      else await onDownloadFit(tour.id, displayName);
     } catch {
       /* silently ignore */
     } finally {
@@ -189,7 +195,7 @@ export function TourDetail({
   const renameLabel = owned ? '✏️ Rename' : '🏷️ Custom Name';
   const renameTitle = owned
     ? 'Rename'
-    : hasCustomName
+    : hasCustom
       ? 'Edit custom name (overrides displayed name locally)'
       : 'Set a custom local name for this tour';
 
@@ -198,11 +204,11 @@ export function TourDetail({
       <div class={styles.header}>
         <div class={styles.titleRow}>
           <div class={styles.title}>
-            {sportIcon(tour.sport)} {tour.name || 'Unnamed'}
-            {hasCustomName && (
+            {sportIcon(tour.sport)} {displayName || 'Unnamed'}
+            {hasCustom && (
               <span
                 class={styles.customBadge}
-                title="Custom name applied locally"
+                title={`Custom name — original: ${tour.name}`}
               >
                 🏷️
               </span>

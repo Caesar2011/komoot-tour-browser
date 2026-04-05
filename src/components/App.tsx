@@ -17,6 +17,7 @@ import { useBulkOperations } from '../hooks/useBulkOperations.ts';
 import { useDragDrop } from '../hooks/useDragDrop.ts';
 import { Api, ForbiddenError } from '../logic/api.ts';
 import { isOwnTour } from '../logic/utils.ts';
+import { resolveDisplayName } from '../logic/tourName.ts';
 import { resolveEffectiveTours } from '../logic/selection.ts';
 import { komootTourUrl, komootFolderUrl } from '../logic/komoot.ts';
 import { collectTours, findNode } from '../logic/tree.ts';
@@ -56,6 +57,7 @@ export function App() {
     tours.tree,
     tours.applyTourUpdate,
     tours.removeTour,
+    customNameHook.setCustomName,
   );
 
   const [lastExportFormat, setLastExportFormat] = useState<ExportFormat>('gpx');
@@ -202,7 +204,7 @@ export function App() {
 
   const handleRenameFromDetail = useCallback(
     (tour: Tour) => {
-      // Foreign tours go through the custom name flow via fallback dialog
+      // For foreign tours, always use the fallback dialog (shows original name)
       if (!isOwnTour(tour, Api.userId)) {
         setFallbackRenameTour(tour);
         return;
@@ -433,9 +435,8 @@ function FallbackRenameDialog({
   onCancel: () => void;
 }) {
   const isForeign = !isOwnTour(tour, Api.userId);
-  const initialValue = isForeign
-    ? (customNames.get(tour.id) ?? tour.name)
-    : tour.name;
+  const displayName = resolveDisplayName(tour, customNames);
+  const initialValue = isForeign ? displayName : tour.name;
   const [value, setValue] = useState(initialValue);
   const [saving, setSaving] = useState(false);
 

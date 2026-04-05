@@ -10,6 +10,10 @@ import type {
 import { sportIcon, isOwnTour } from '../../../logic/utils.ts';
 import { countTours } from '../../../logic/tree.ts';
 import { itemKey } from '../../../logic/selection.ts';
+import {
+  hasCustomName as checkCustomName,
+  numericId,
+} from '../../../logic/tourName.ts';
 
 import styles from './TourTree.module.css';
 
@@ -308,7 +312,7 @@ function TourTreeItem({
     renamingItem?.type === 'tour' && renamingItem.tour?.id === tour.id;
 
   const owned = isOwnTour(tour, userId);
-  const hasCustomName = !owned && customNames.has(tour.id);
+  const hasCustom = checkCustomName(tour, customNames, userId);
 
   const classes = [
     styles.label,
@@ -322,16 +326,15 @@ function TourTreeItem({
 
   const handleDblClick = (e: MouseEvent) => {
     if (isRenamingThis) return;
-    // Own tours: inline rename with full tour.name (path) as initial value.
-    // Foreign tours: delegate to App's fallback dialog via onItemDoubleClick.
     onItemDoubleClick(e, sidebarItem);
   };
 
-  // Own tours rename using the full `tour.name` (which includes path hierarchy).
-  // Foreign tours rename using the stored custom name, or the displayed name.
+  // Own tours: full tour.name (includes path hierarchy) for inline rename.
+  // Foreign tours: the full custom name if set, otherwise the full displayed name
+  // (which is already substituted by applyCustomNames before tree building).
   const renameInitialValue = owned
     ? tour.name
-    : (customNames.get(tour.id) ?? tour.name);
+    : (customNames.get(numericId(tour)) ?? tour.name);
 
   return (
     <li
@@ -376,7 +379,7 @@ function TourTreeItem({
             {tour._leafName || tour.name || 'Unnamed'}
           </span>
         )}
-        {!isRenamingThis && hasCustomName && (
+        {!isRenamingThis && hasCustom && (
           <span class={styles.customNameIcon} title="Custom name applied">
             🏷️
           </span>
@@ -393,7 +396,6 @@ function TourTreeItem({
 
 interface InlineRenameProps {
   initialValue: string;
-  /** When true, saving an empty string is allowed (foreign tour = delete custom name). */
   allowEmpty?: boolean;
   onSave: (newName: string) => Promise<void>;
   onCancel: () => void;
@@ -422,7 +424,6 @@ function InlineRenameInput({
 
   const doSave = async () => {
     const trimmed = value.trim();
-    // For own tours: disallow empty or unchanged. For foreign: allow empty (= delete).
     if (!allowEmpty && (!trimmed || trimmed === initialValue)) {
       onCancel();
       return;
