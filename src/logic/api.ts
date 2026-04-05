@@ -14,6 +14,7 @@ import type {
 import { CONFIG } from '../config.ts';
 
 import {
+  LruMap,
   cacheGet,
   cacheSet,
   cacheDelete,
@@ -75,21 +76,38 @@ export interface IApiClient {
     tourId: number,
     signal?: AbortSignal,
   ): Promise<SurfaceSegment[]>;
-  /** Remove all persistent + in-memory detail cache entries for one tour. */
   invalidateTourCache(tourId: number): Promise<void>;
-  /** Remove the cached tour list so the next fetch hits the network. */
   invalidateToursCache(): Promise<void>;
   resetCaches(): void;
 }
 
+/** Normalize a tour from the API — coerces id to number at the boundary. */
+function normalizeTour(raw: Tour): Tour {
+  return { ...raw, id: Number(raw.id) };
+}
+
+// ── Cache key helpers ────────────────────────────────────────────────────
+
+const DETAIL_PREFIXES = [
+  'coords',
+  'covers',
+  'timeline',
+  'waytypes',
+  'surfaces',
+] as const;
+
+function cacheKey(prefix: string, tourId: number): string {
+  return `${prefix}:${tourId}`;
+}
+
+// ── Max entries kept in memory per detail type ───────────────────────────
+
+const MEM_CACHE_CAPACITY = 50;
+
 class ApiClient implements IApiClient {
   private auth: AuthState | null = null;
-
-  /** In-memory mirror — avoids redundant IDB reads within a session. */
-  private memCoords = new Map<number, Coordinate[]>();
-  private memCovers = new Map<number, CoverImage[]>();
-
-  // ── key helpers ────────────────────────────────────────────────────────────
+  private memCoords = new LruMap<number, Coordinate[]>(MEM_CACHE_CAPACITY);
+  private memCovers = new LruMap<number, CoverImage[]>(MEM_CACHE_CAPACITY);
 
   private toursKey(): string {
     return `tours:${this.auth!.userId}`;
@@ -98,7 +116,7 @@ class ApiClient implements IApiClient {
   // ── auth ───────────────────────────────────────────────────────────────────
 
   get isAuthenticated(): boolean {
-    return !!(this.auth && this.auth.userId && this.auth.token);
+    return !!(this.auth?.userId && this.auth.token);
   }
 
   get displayName(): string {
@@ -170,20 +188,18 @@ class ApiClient implements IApiClient {
   // ── tours list ─────────────────────────────────────────────────────────────
 
   async fetchAllTours(signal?: AbortSignal): Promise<Tour[]> {
-    // Try persistent cache first
     const cached = await cacheGet<Tour[]>(this.toursKey(), CONFIG.CACHE_TTL_MS);
     if (cached) return cached;
 
-    // Network fetch (paginated)
     const tours: Tour[] = [];
     let page = 0;
     for (;;) {
       const url = `${CONFIG.API_BASE}/v007/users/${this.auth!.userId}/tours/?limit=${CONFIG.PAGE_LIMIT}&page=${page}`;
       const resp = await this.get(url, signal);
       const data: ToursApiResponse = await resp.json();
-      const pageTours: Tour[] = data._embedded?.tours ?? [];
+      const pageTours = (data._embedded?.tours ?? []).map(normalizeTour);
       tours.push(...pageTours);
-      const totalPages: number = data.page?.totalPages ?? 1;
+      const totalPages = data.page?.totalPages ?? 1;
       page++;
       if (page >= totalPages || pageTours.length === 0) break;
     }
@@ -196,7 +212,7 @@ class ApiClient implements IApiClient {
     await cacheDelete(this.toursKey());
   }
 
-  // ── coordinates ────────────────────────────────────────────────────────────
+  // ── coordinates (special: returns null on failure, has separate mem cache) ─
 
   async fetchCoordinates(
     tourId: number,
@@ -205,10 +221,8 @@ class ApiClient implements IApiClient {
     const mem = this.memCoords.get(tourId);
     if (mem) return mem;
 
-    const cached = await cacheGet<Coordinate[]>(
-      `coords:${tourId}`,
-      CONFIG.CACHE_TTL_MS,
-    );
+    const key = cacheKey('coords', tourId);
+    const cached = await cacheGet<Coordinate[]>(key, CONFIG.CACHE_TTL_MS);
     if (cached) {
       this.memCoords.set(tourId, cached);
       return cached;
@@ -222,7 +236,7 @@ class ApiClient implements IApiClient {
       const data: CoordinatesApiResponse = await resp.json();
       const coords: Coordinate[] = data.items ?? [];
       this.memCoords.set(tourId, coords);
-      await cacheSet(`coords:${tourId}`, coords);
+      await cacheSet(key, coords);
       return coords;
     } catch (err) {
       if (err instanceof AuthExpiredError) throw err;
@@ -237,6 +251,102 @@ class ApiClient implements IApiClient {
 
   getCachedCoordinates(tourId: number): Coordinate[] | null {
     return this.memCoords.get(tourId) ?? null;
+  }
+
+  // ── generic cached list fetcher ────────────────────────────────────────────
+
+  private async fetchCachedList<T>(
+    prefix: string,
+    tourId: number,
+    urlPath: string,
+    extract: (data: Record<string, unknown>) => T[],
+    signal?: AbortSignal,
+    memCache?: LruMap<number, T[]>,
+  ): Promise<T[]> {
+    if (memCache) {
+      const mem = memCache.get(tourId);
+      if (mem) return mem;
+    }
+
+    const key = cacheKey(prefix, tourId);
+    const cached = await cacheGet<T[]>(key, CONFIG.CACHE_TTL_MS);
+    if (cached) {
+      memCache?.set(tourId, cached);
+      return cached;
+    }
+
+    try {
+      const resp = await this.get(`${CONFIG.API_BASE}${urlPath}`, signal);
+      const data: Record<string, unknown> = await resp.json();
+      const items = extract(data);
+      memCache?.set(tourId, items);
+      await cacheSet(key, items);
+      return items;
+    } catch (err) {
+      if (err instanceof AuthExpiredError) throw err;
+      return [];
+    }
+  }
+
+  // ── detail fetches ─────────────────────────────────────────────────────────
+
+  fetchTimeline(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<TimelineEntry[]> {
+    return this.fetchCachedList<TimelineEntry>(
+      'timeline',
+      tourId,
+      `/v007/tours/${tourId}/timeline/`,
+      (d) => {
+        const embedded = d._embedded as Record<string, unknown> | undefined;
+        return (embedded?.items as TimelineEntry[]) ?? [];
+      },
+      signal,
+    );
+  }
+
+  fetchCoverImages(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<CoverImage[]> {
+    return this.fetchCachedList<CoverImage>(
+      'covers',
+      tourId,
+      `/v007/tours/${tourId}/cover_images/`,
+      (d) => {
+        const embedded = d._embedded as Record<string, unknown> | undefined;
+        return (embedded?.items ?? d.items ?? []) as CoverImage[];
+      },
+      signal,
+      this.memCovers,
+    );
+  }
+
+  fetchWayTypes(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<WayTypeSegment[]> {
+    return this.fetchCachedList<WayTypeSegment>(
+      'waytypes',
+      tourId,
+      `/v007/tours/${tourId}/way_types`,
+      (d) => (d.items as WayTypeSegment[]) ?? [],
+      signal,
+    );
+  }
+
+  fetchSurfaces(
+    tourId: number,
+    signal?: AbortSignal,
+  ): Promise<SurfaceSegment[]> {
+    return this.fetchCachedList<SurfaceSegment>(
+      'surfaces',
+      tourId,
+      `/v007/tours/${tourId}/surfaces`,
+      (d) => (d.items as SurfaceSegment[]) ?? [],
+      signal,
+    );
   }
 
   // ── mutations ──────────────────────────────────────────────────────────────
@@ -271,8 +381,7 @@ class ApiClient implements IApiClient {
       }
       throw new Error(msg);
     }
-    const tour = (await resp.json()) as Tour;
-    // Keep the cached list consistent
+    const tour = normalizeTour(await resp.json());
     await cachePatchTour<Tour>(this.toursKey(), tourId, fields);
     return tour;
   }
@@ -300,7 +409,6 @@ class ApiClient implements IApiClient {
     if (!resp.ok && resp.status !== 204) {
       throw new Error(`HTTP ${resp.status}`);
     }
-    // Remove from list cache and clear all detail caches
     await Promise.all([
       cacheRemoveTour<Tour>(this.toursKey(), tourId),
       this.invalidateTourCache(tourId),
@@ -341,8 +449,7 @@ class ApiClient implements IApiClient {
       }
       throw new Error(msg);
     }
-    const tour = (await resp.json()) as Tour;
-    // Prepend to cached list if one exists
+    const tour = normalizeTour(await resp.json());
     await cachePrependTour<Tour>(this.toursKey(), tour);
     return tour;
   }
@@ -350,108 +457,15 @@ class ApiClient implements IApiClient {
   // ── downloads ──────────────────────────────────────────────────────────────
 
   async downloadGpx(tourId: number): Promise<Blob> {
-    const resp = await this.get(`${CONFIG.API_BASE}/v007/tours/${tourId}.gpx`);
-    return resp.blob();
+    return (
+      await this.get(`${CONFIG.API_BASE}/v007/tours/${tourId}.gpx`)
+    ).blob();
   }
 
   async downloadFit(tourId: number): Promise<Blob> {
-    const resp = await this.get(`${CONFIG.API_BASE}/v007/tours/${tourId}.fit`);
-    return resp.blob();
-  }
-
-  // ── detail fetches ─────────────────────────────────────────────────────────
-
-  async fetchTimeline(
-    tourId: number,
-    signal?: AbortSignal,
-  ): Promise<TimelineEntry[]> {
-    const key = `timeline:${tourId}`;
-    const cached = await cacheGet<TimelineEntry[]>(key, CONFIG.CACHE_TTL_MS);
-    if (cached) return cached;
-    try {
-      const resp = await this.get(
-        `${CONFIG.API_BASE}/v007/tours/${tourId}/timeline/`,
-        signal,
-      );
-      const data = await resp.json();
-      const items: TimelineEntry[] = data._embedded?.items ?? [];
-      await cacheSet(key, items);
-      return items;
-    } catch (err) {
-      if (err instanceof AuthExpiredError) throw err;
-      return [];
-    }
-  }
-
-  async fetchCoverImages(
-    tourId: number,
-    signal?: AbortSignal,
-  ): Promise<CoverImage[]> {
-    const mem = this.memCovers.get(tourId);
-    if (mem) return mem;
-
-    const key = `covers:${tourId}`;
-    const cached = await cacheGet<CoverImage[]>(key, CONFIG.CACHE_TTL_MS);
-    if (cached) {
-      this.memCovers.set(tourId, cached);
-      return cached;
-    }
-    try {
-      const resp = await this.get(
-        `${CONFIG.API_BASE}/v007/tours/${tourId}/cover_images/`,
-        signal,
-      );
-      const data = await resp.json();
-      const images: CoverImage[] = data._embedded?.items ?? data.items ?? [];
-      this.memCovers.set(tourId, images);
-      await cacheSet(key, images);
-      return images;
-    } catch (err) {
-      if (err instanceof AuthExpiredError) throw err;
-      return [];
-    }
-  }
-
-  async fetchWayTypes(
-    tourId: number,
-    signal?: AbortSignal,
-  ): Promise<WayTypeSegment[]> {
-    const key = `waytypes:${tourId}`;
-    const cached = await cacheGet<WayTypeSegment[]>(key, CONFIG.CACHE_TTL_MS);
-    if (cached) return cached;
-    try {
-      const resp = await this.get(
-        `${CONFIG.API_BASE}/v007/tours/${tourId}/way_types`,
-        signal,
-      );
-      const data = await resp.json();
-      const items: WayTypeSegment[] = data.items ?? [];
-      await cacheSet(key, items);
-      return items;
-    } catch {
-      return [];
-    }
-  }
-
-  async fetchSurfaces(
-    tourId: number,
-    signal?: AbortSignal,
-  ): Promise<SurfaceSegment[]> {
-    const key = `surfaces:${tourId}`;
-    const cached = await cacheGet<SurfaceSegment[]>(key, CONFIG.CACHE_TTL_MS);
-    if (cached) return cached;
-    try {
-      const resp = await this.get(
-        `${CONFIG.API_BASE}/v007/tours/${tourId}/surfaces`,
-        signal,
-      );
-      const data = await resp.json();
-      const items: SurfaceSegment[] = data.items ?? [];
-      await cacheSet(key, items);
-      return items;
-    } catch {
-      return [];
-    }
+    return (
+      await this.get(`${CONFIG.API_BASE}/v007/tours/${tourId}.fit`)
+    ).blob();
   }
 
   // ── cache management ───────────────────────────────────────────────────────
@@ -459,19 +473,14 @@ class ApiClient implements IApiClient {
   async invalidateTourCache(tourId: number): Promise<void> {
     this.memCoords.delete(tourId);
     this.memCovers.delete(tourId);
-    await Promise.all([
-      cacheDeletePrefix(`coords:${tourId}`),
-      cacheDeletePrefix(`covers:${tourId}`),
-      cacheDeletePrefix(`timeline:${tourId}`),
-      cacheDeletePrefix(`waytypes:${tourId}`),
-      cacheDeletePrefix(`surfaces:${tourId}`),
-    ]);
+    await Promise.all(
+      DETAIL_PREFIXES.map((p) => cacheDeletePrefix(cacheKey(p, tourId))),
+    );
   }
 
   resetCaches(): void {
     this.memCoords.clear();
     this.memCovers.clear();
-    // Intentionally does not clear IDB — persistent cache survives session resets.
   }
 }
 

@@ -3,11 +3,7 @@ import { CONFIG, SPORT_ICONS } from '../config.ts';
 
 export function encodeBase64(str: string): string {
   const bytes = new TextEncoder().encode(str);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+  return btoa(String.fromCharCode(...bytes));
 }
 
 export function basicAuthHeader(user: string, pass: string): string {
@@ -15,7 +11,7 @@ export function basicAuthHeader(user: string, pass: string): string {
 }
 
 export function sportIcon(sport: SportType): string {
-  return (SPORT_ICONS as Record<string, string>)[sport] || '🏃';
+  return SPORT_ICONS[sport] || '🏃';
 }
 
 export function formatDist(m: number): string {
@@ -40,6 +36,11 @@ export function formatDate(iso: string | undefined): string {
   } catch {
     return iso;
   }
+}
+
+/** Pluralize "tour" / "tours". */
+export function pluralizeTours(count: number): string {
+  return `${count} tour${count !== 1 ? 's' : ''}`;
 }
 
 export function sortToursByDate(tours: Tour[]): Tour[] {
@@ -82,56 +83,43 @@ export function niceStep(range: number, maxTicks: number): number {
   return nice * mag || 1;
 }
 
-/** Sanitize a string for use as a filename. */
 export function safeName(name: string): string {
   return (name || 'tour').replace(/[^a-zA-Z0-9_\-. ]/g, '_');
 }
 
-/**
- * Resolve a cover image URL, handling Komoot's `{width}/{height}` templates.
- * Accepts either a CoverImage object or raw (src, templated, width, height).
- */
+/** Resolve a CoverImage object to a URL. */
 export function resolveCoverImageUrl(
-  srcOrImage: string | CoverImage,
-  templatedOrWidth?: boolean | number,
-  widthOrHeight?: number,
-  height?: number,
+  image: CoverImage,
+  width: number = CONFIG.COVER_IMAGE_WIDTH,
+  height: number = CONFIG.COVER_IMAGE_HEIGHT,
 ): string {
-  let src: string;
-  let templated: boolean | undefined;
-  let w: number;
-  let h: number;
-
-  if (typeof srcOrImage === 'object' && srcOrImage !== null) {
-    src = srcOrImage.src;
-    templated = srcOrImage.templated;
-    w =
-      typeof templatedOrWidth === 'number'
-        ? templatedOrWidth
-        : CONFIG.COVER_IMAGE_WIDTH;
-    h = widthOrHeight ?? CONFIG.COVER_IMAGE_HEIGHT;
-  } else {
-    src = srcOrImage;
-    templated =
-      typeof templatedOrWidth === 'boolean' ? templatedOrWidth : undefined;
-    w =
-      typeof widthOrHeight === 'number'
-        ? widthOrHeight
-        : CONFIG.COVER_IMAGE_WIDTH;
-    h = height ?? CONFIG.COVER_IMAGE_HEIGHT;
+  if (!image.src) return '';
+  if (image.templated) {
+    return image.src
+      .replace('{width}', String(width))
+      .replace('{height}', String(height))
+      .replace('{crop}', 'true');
   }
+  return image.src;
+}
 
+/** Resolve a raw cover URL string with optional template substitution. */
+export function resolveRawCoverUrl(
+  src: string,
+  templated: boolean | undefined,
+  width: number = CONFIG.COVER_IMAGE_WIDTH,
+  height: number = CONFIG.COVER_IMAGE_HEIGHT,
+): string {
   if (!src) return '';
   if (templated) {
     return src
-      .replace('{width}', String(w))
-      .replace('{height}', String(h))
+      .replace('{width}', String(width))
+      .replace('{height}', String(height))
       .replace('{crop}', 'true');
   }
   return src;
 }
 
-/** Trigger a file download in the browser. */
 export function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -143,7 +131,6 @@ export function triggerDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Detect file type from extension. */
 export function detectDataType(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
   if (ext === 'gpx') return 'gpx';
@@ -152,7 +139,6 @@ export function detectDataType(filename: string): string {
   return 'gpx';
 }
 
-/** Returns true if the tour belongs to the currently authenticated user. */
 export function isOwnTour(tour: Tour, userId: string): boolean {
   if (!userId) return false;
   const creatorId = tour._embedded?.creator?.username;

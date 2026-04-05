@@ -9,13 +9,10 @@ import {
   type CustomNameRecord,
 } from './cache.ts';
 import { isOwnTour } from './utils.ts';
-import { numericId } from './tourName.ts';
 
 export { type CustomNameRecord };
 
 const META_KEY = 'customNamesExportedAt';
-
-// ── IDB access ─────────────────────────────────────────────────────────────
 
 /** Load all custom names from IDB into a Map<tourId, name>. */
 export async function loadCustomNames(): Promise<Map<number, string>> {
@@ -29,20 +26,19 @@ export async function saveCustomName(
   name: string,
   updatedAt: number = Date.now(),
 ): Promise<void> {
-  const id = Number(tourId);
   if (name === '') {
-    await cnDelete(id);
+    await cnDelete(tourId);
   } else {
-    await cnPut({ tourId: id, name, updatedAt });
+    await cnPut({ tourId, name, updatedAt });
   }
 }
 
 /** Delete a custom name by tourId. */
 export async function deleteCustomName(tourId: number): Promise<void> {
-  await cnDelete(Number(tourId));
+  await cnDelete(tourId);
 }
 
-/** Read the global lastExportedAt timestamp (undefined if never exported). */
+/** Read the global lastExportedAt timestamp. */
 export async function getLastExportedAt(): Promise<number | undefined> {
   return metaGet<number>(META_KEY);
 }
@@ -51,8 +47,6 @@ export async function getLastExportedAt(): Promise<number | undefined> {
 export async function setLastExportedAt(ts: number): Promise<void> {
   await metaPut(META_KEY, ts);
 }
-
-// ── out-of-sync detection ──────────────────────────────────────────────────
 
 export function computeIsDirty(
   records: CustomNameRecord[],
@@ -64,11 +58,8 @@ export function computeIsDirty(
   return maxUpdated > lastExportedAt;
 }
 
-// ── applyCustomNames ───────────────────────────────────────────────────────
-
 /**
  * Pre-process a tour list by substituting custom names for foreign tours.
- * Used before tree-building and filtering so the UI sees custom names.
  */
 export function applyCustomNames(
   tours: Tour[],
@@ -78,13 +69,13 @@ export function applyCustomNames(
   if (customNames.size === 0) return tours;
   return tours.map((tour) => {
     if (isOwnTour(tour, userId)) return tour;
-    const custom = customNames.get(numericId(tour));
+    const custom = customNames.get(tour.id);
     if (!custom) return tour;
     return { ...tour, name: custom };
   });
 }
 
-// ── export ─────────────────────────────────────────────────────────────────
+// ── export ─────────────────────────────────────────────────────────────
 
 export interface ExportPayload {
   version: 1;
@@ -100,7 +91,7 @@ export function buildExportPayload(records: CustomNameRecord[]): ExportPayload {
   };
 }
 
-// ── import ─────────────────────────────────────────────────────────────────
+// ── import ─────────────────────────────────────────────────────────────
 
 export interface ImportResult {
   added: number;
@@ -156,22 +147,20 @@ export async function mergeImport(
   incoming: CustomNameRecord[],
   existing: CustomNameRecord[],
 ): Promise<{ result: ImportResult; merged: CustomNameRecord[] }> {
-  const existingMap = new Map(existing.map((r) => [Number(r.tourId), r]));
+  const existingMap = new Map(existing.map((r) => [r.tourId, r]));
   let added = 0;
   let updated = 0;
   let skipped = 0;
 
   for (const record of incoming) {
-    const id = Number(record.tourId);
-    const normalized = { ...record, tourId: id };
-    const local = existingMap.get(id);
+    const local = existingMap.get(record.tourId);
     if (!local) {
-      existingMap.set(id, normalized);
-      await cnPut(normalized);
+      existingMap.set(record.tourId, record);
+      await cnPut(record);
       added++;
     } else if (record.updatedAt > local.updatedAt) {
-      existingMap.set(id, normalized);
-      await cnPut(normalized);
+      existingMap.set(record.tourId, record);
+      await cnPut(record);
       updated++;
     } else {
       skipped++;

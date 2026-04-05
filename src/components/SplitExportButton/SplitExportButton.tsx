@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 
 import type { ExportFormat } from '../../types.ts';
 
@@ -9,7 +9,6 @@ interface Props {
   onExport: (format: ExportFormat) => void;
   onFormatChange: (format: ExportFormat) => void;
   disabled?: boolean;
-  /** Size variant. */
   size?: 'sm' | 'md';
 }
 
@@ -21,7 +20,7 @@ export function SplitExportButton({
   size = 'sm',
 }: Props) {
   const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const handleSelect = useCallback(
     (f: ExportFormat) => {
@@ -32,10 +31,22 @@ export function SplitExportButton({
     [onFormatChange, onExport],
   );
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
   const sizeClass = size === 'md' ? styles.md : '';
 
   return (
-    <div class={`${styles.wrap} ${sizeClass}`} ref={menuRef}>
+    <div class={`${styles.wrap} ${sizeClass}`} ref={wrapRef}>
       <button
         class={styles.main}
         onClick={() => onExport(format)}

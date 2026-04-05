@@ -1,87 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
-import type {
-  ExportFormat,
-  Filters,
-  SidebarItem,
-  Tour,
-  TreeNode,
-} from '../../types.ts';
+import type { SidebarItem } from '../../types.ts';
 import { CONFIG } from '../../config.ts';
-import { Api } from '../../logic/api.ts';
 import { isOwnTour } from '../../logic/utils.ts';
-import type { useSidebarSelection } from '../../hooks/useSidebarSelection.ts';
-import type { useDragDrop } from '../../hooks/useDragDrop.ts';
+import { useAppContext } from '../../contexts/useAppContext.ts';
 
 import { FilterPanel } from './FilterPanel/FilterPanel.tsx';
 import { TourTree } from './TourTree/TourTree.tsx';
 import { SelectionStatusBar } from './SelectionStatusBar/SelectionStatusBar.tsx';
 import styles from './Sidebar.module.css';
 
-interface Props {
-  tree: TreeNode | null;
-  tourCount: number;
-  toursLoading: boolean;
-  filters: Filters;
-  allTours: Tour[];
-  onFiltersChange: (filters: Filters) => void;
-  onTogglePath: (path: string) => void;
-  onOpenPath: (path: string) => void;
-  onClosePath: (path: string) => void;
-  openPaths: Set<string>;
-  sidebarSel: ReturnType<typeof useSidebarSelection>;
-  dragDrop: ReturnType<typeof useDragDrop>;
-  onActivateItem: (
-    type: 'folder' | 'tour',
-    path: string,
-    tourId?: number,
-  ) => void;
-  onBulkDelete: () => void;
-  onBulkExport: (format: ExportFormat) => void;
-  onOpenInKomoot: () => void;
-  onInlineRename: (tour: Tour, newName: string) => Promise<void>;
-  onFolderRename: (oldPath: string, newName: string) => Promise<void>;
-  onRefreshTours: () => Promise<void>;
-  lastExportFormat: ExportFormat;
-  onSetExportFormat: (f: ExportFormat) => void;
-  customNames: Map<number, string>;
-  isDirtyMappings: boolean;
-  onOpenMappingDialog: () => void;
-}
+export function Sidebar() {
+  const {
+    userId,
+    tours,
+    sel,
+    sidebarSel,
+    dragDrop,
+    customNameHook,
+    handleActivateItem,
+    handleBulkDelete,
+    handleBulkExport,
+    handleOpenInKomoot,
+    handleInlineRename,
+    handleFolderRename,
+    lastExportFormat,
+    setLastExportFormat,
+  } = useAppContext();
 
-export function Sidebar({
-  tree,
-  tourCount,
-  toursLoading,
-  filters,
-  allTours,
-  onFiltersChange,
-  onTogglePath,
-  onOpenPath,
-  onClosePath,
-  openPaths,
-  sidebarSel,
-  dragDrop,
-  onActivateItem,
-  onBulkDelete,
-  onBulkExport,
-  onOpenInKomoot,
-  onInlineRename,
-  onFolderRename,
-  onRefreshTours,
-  lastExportFormat,
-  onSetExportFormat,
-  customNames,
-  isDirtyMappings,
-  onOpenMappingDialog,
-}: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navRef = useRef<HTMLElement>(null);
   const pendingActivateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  const userId = Api.userId;
 
   const {
     focusIndex,
@@ -105,7 +56,6 @@ export function Sidebar({
     cancelRename,
   } = sidebarSel;
 
-  // Clean up pending activate timer on unmount
   useEffect(() => {
     return () => {
       if (pendingActivateRef.current) clearTimeout(pendingActivateRef.current);
@@ -131,7 +81,7 @@ export function Sidebar({
     const value = e.currentTarget.value;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(
-      () => onFiltersChange({ ...filters, nameQuery: value }),
+      () => tours.handleFiltersChange({ ...tours.filters, nameQuery: value }),
       CONFIG.FILTER_DEBOUNCE_MS,
     );
   };
@@ -164,9 +114,9 @@ export function Sidebar({
         pendingActivateRef.current = setTimeout(() => {
           pendingActivateRef.current = null;
           if (item.type === 'tour' && item.tour) {
-            onActivateItem('tour', item.path, item.tour.id);
+            handleActivateItem('tour', item.path, item.tour.id);
           } else {
-            onActivateItem('folder', item.path);
+            handleActivateItem('folder', item.path);
           }
         }, CONFIG.CLICK_ACTIVATE_DELAY_MS);
       }
@@ -177,7 +127,7 @@ export function Sidebar({
       handlePlainClick,
       handleCtrlClick,
       handleShiftClick,
-      onActivateItem,
+      handleActivateItem,
     ],
   );
 
@@ -195,9 +145,9 @@ export function Sidebar({
   const handleArrowClick = useCallback(
     (e: MouseEvent, item: SidebarItem) => {
       e.stopPropagation();
-      if (item.type === 'folder') onTogglePath(item.path);
+      if (item.type === 'folder') sel.handleTogglePath(item.path);
     },
-    [onTogglePath],
+    [sel],
   );
 
   const handleStartRename = useCallback(() => {
@@ -208,11 +158,11 @@ export function Sidebar({
   const handleRefreshTours = useCallback(async () => {
     setRefreshing(true);
     try {
-      await onRefreshTours();
+      await tours.refreshTours();
     } finally {
       setRefreshing(false);
     }
-  }, [onRefreshTours]);
+  }, [tours]);
 
   useEffect(() => {
     const nav = navRef.current;
@@ -255,14 +205,14 @@ export function Sidebar({
           if (focusIndex < 0 || focusIndex >= len) break;
           const item = flatItems[focusIndex];
           if (item.type === 'folder') {
-            if (!openPaths.has(item.path)) onOpenPath(item.path);
+            if (!sel.openPaths.has(item.path)) sel.openPath(item.path);
             else {
               activateFocused();
-              onActivateItem('folder', item.path);
+              handleActivateItem('folder', item.path);
             }
           } else if (item.tour) {
             activateFocused();
-            onActivateItem('tour', item.path, item.tour.id);
+            handleActivateItem('tour', item.path, item.tour.id);
           }
           break;
         }
@@ -271,8 +221,8 @@ export function Sidebar({
           if (focusIndex < 0 || focusIndex >= len) break;
           const item = flatItems[focusIndex];
           if (item.type === 'folder') {
-            if (openPaths.has(item.path)) {
-              onClosePath(item.path);
+            if (sel.openPaths.has(item.path)) {
+              sel.closePath(item.path);
             } else {
               const parentPath = item.path.includes('/')
                 ? item.path.slice(0, item.path.lastIndexOf('/'))
@@ -297,8 +247,8 @@ export function Sidebar({
           activateFocused();
           const item = flatItems[focusIndex];
           if (item.type === 'tour' && item.tour)
-            onActivateItem('tour', item.path, item.tour.id);
-          else onActivateItem('folder', item.path);
+            handleActivateItem('tour', item.path, item.tour.id);
+          else handleActivateItem('folder', item.path);
           break;
         }
         case 'F2': {
@@ -315,7 +265,7 @@ export function Sidebar({
         case 'Backspace': {
           if (selected.size > 0) {
             e.preventDefault();
-            onBulkDelete();
+            handleBulkDelete();
           }
           break;
         }
@@ -329,7 +279,7 @@ export function Sidebar({
   }, [
     flatItems,
     focusIndex,
-    openPaths,
+    sel,
     renamingItem,
     selected,
     activateFocused,
@@ -337,27 +287,28 @@ export function Sidebar({
     handleCtrlSpace,
     handleShiftArrow,
     handleSpace,
-    onActivateItem,
-    onBulkDelete,
-    onClosePath,
-    onOpenPath,
+    handleActivateItem,
+    handleBulkDelete,
     setFocusIndex,
     handleStartRename,
   ]);
 
   const renameEnabled = canRename();
-  const isSpinning = refreshing || toursLoading;
+  const isSpinning = refreshing || tours.loading;
+  const isDirtyMappings = customNameHook.isDirty;
 
   return (
     <aside class={styles.sidebar} aria-label="Tour navigation">
       <div class={styles.header}>
         <span>
-          Tours · <span>{tourCount}</span>
+          Tours · <span>{tours.filteredTours.length}</span>
         </span>
         <div class={styles.headerActions}>
           <button
             class={`${styles.mappingBtn} ${isDirtyMappings ? styles.mappingDirty : ''}`}
-            onClick={onOpenMappingDialog}
+            onClick={() =>
+              window.dispatchEvent(new Event('open-mapping-dialog'))
+            }
             title={
               isDirtyMappings
                 ? 'Custom names have unsaved changes — export to keep them safe'
@@ -387,31 +338,31 @@ export function Sidebar({
         />
       </div>
       <FilterPanel
-        filters={filters}
-        onChange={onFiltersChange}
-        allTours={allTours}
+        filters={tours.filters}
+        onChange={tours.handleFiltersChange}
+        allTours={tours.allTours}
       />
       <nav ref={navRef} class={styles.tree} aria-label="Tour tree" tabIndex={0}>
-        {tree && (
+        {tours.tree && (
           <TourTree
-            node={tree}
+            node={tours.tree}
             depth={0}
             isRoot
             activeItem={activeItem}
             selected={selected}
-            openPaths={openPaths}
+            openPaths={sel.openPaths}
             focusedIndex={focusIndex}
             flatItems={flatItems}
             renamingItem={renamingItem}
             dragOverPath={dragDrop.dragOverPath}
             isDragging={dragDrop.isDragging}
             userId={userId}
-            customNames={customNames}
+            customNames={customNameHook.customNames}
             onItemClick={handleItemClick}
             onItemDoubleClick={handleItemDoubleClick}
             onArrowClick={handleArrowClick}
-            onInlineRename={onInlineRename}
-            onFolderRename={onFolderRename}
+            onInlineRename={handleInlineRename}
+            onFolderRename={handleFolderRename}
             onCancelRename={cancelRename}
             onFinishRename={finishRenameAndRefocus}
             onDragStart={dragDrop.handleDragStart}
@@ -431,11 +382,11 @@ export function Sidebar({
           selectedCount={selected.size}
           canRename={renameEnabled}
           lastExportFormat={lastExportFormat}
-          onSetExportFormat={onSetExportFormat}
-          onExport={onBulkExport}
-          onDelete={onBulkDelete}
+          onSetExportFormat={setLastExportFormat}
+          onExport={handleBulkExport}
+          onDelete={handleBulkDelete}
           onRename={handleStartRename}
-          onOpenInKomoot={onOpenInKomoot}
+          onOpenInKomoot={handleOpenInKomoot}
         />
       )}
     </aside>

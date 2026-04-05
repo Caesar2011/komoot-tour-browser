@@ -97,3 +97,57 @@ h3 {
   font-size: 13px;
   min-height: 1.2em;
 }
+
+/* ── Shared dialog action bar ─────────────────────────────────────────── */
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* ── Shared button styles ─────────────────────────────────────────────── */
+.btn {
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--c-primary);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--c-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--c-border);
+}
+
+.btn-danger-outline {
+  background: none;
+  color: var(--c-danger);
+  border: 1px solid var(--c-danger);
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: var(--c-danger);
+  color: #fff;
+}

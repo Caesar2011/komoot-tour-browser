@@ -10,10 +10,7 @@ import type {
 import { sportIcon, isOwnTour } from '../../../logic/utils.ts';
 import { countTours } from '../../../logic/tree.ts';
 import { itemKey } from '../../../logic/selection.ts';
-import {
-  hasCustomName as checkCustomName,
-  numericId,
-} from '../../../logic/tourName.ts';
+import { hasCustomName as checkCustomName } from '../../../logic/tourName.ts';
 
 import styles from './TourTree.module.css';
 
@@ -111,6 +108,34 @@ export function TourTree({
     .filter(Boolean)
     .join(' ');
 
+  const sharedProps = {
+    activeItem,
+    selected,
+    openPaths,
+    focusedIndex,
+    flatItems,
+    renamingItem,
+    dragOverPath,
+    isDragging,
+    userId,
+    customNames,
+    onItemClick,
+    onItemDoubleClick,
+    onArrowClick,
+    onInlineRename,
+    onFolderRename,
+    onCancelRename,
+    onFinishRename,
+    onDragStart,
+    onDragOver,
+    onDragLeave,
+    onDrop,
+    onDragEnd,
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
+  };
+
   return (
     <ul role={isRoot ? 'tree' : 'group'} class={styles.treeList}>
       <li
@@ -126,8 +151,7 @@ export function TourTree({
           data-drop-path={node.path}
           draggable={!isRoot && !isRenamingThis}
           onClick={(e: MouseEvent) => {
-            if (isRenamingThis) return;
-            onItemClick(e, folderItem, flatIdx);
+            if (!isRenamingThis) onItemClick(e, folderItem, flatIdx);
           }}
           onDblClick={(e: MouseEvent) => {
             if (!isRoot && !isRenamingThis) onItemDoubleClick(e, folderItem);
@@ -143,7 +167,6 @@ export function TourTree({
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Stop propagation on the arrow to prevent dblclick bubbling to the row */}
           <span
             class={`${styles.toggle} ${isOpen ? styles.open : ''}`}
             onClick={(e: MouseEvent) => {
@@ -177,34 +200,9 @@ export function TourTree({
                 key={key}
                 node={node.children.get(key)!}
                 depth={depth + 1}
-                activeItem={activeItem}
-                selected={selected}
-                openPaths={openPaths}
-                focusedIndex={focusedIndex}
-                flatItems={flatItems}
-                renamingItem={renamingItem}
-                dragOverPath={dragOverPath}
-                isDragging={isDragging}
-                userId={userId}
-                customNames={customNames}
-                onItemClick={onItemClick}
-                onItemDoubleClick={onItemDoubleClick}
-                onArrowClick={onArrowClick}
-                onInlineRename={onInlineRename}
-                onFolderRename={onFolderRename}
-                onCancelRename={onCancelRename}
-                onFinishRename={onFinishRename}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                onDragEnd={onDragEnd}
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
+                {...sharedProps}
               />
             ))}
-
             {node.tours.map((tour) => (
               <TourTreeItem
                 key={tour.id}
@@ -324,17 +322,10 @@ function TourTreeItem({
     .filter(Boolean)
     .join(' ');
 
-  const handleDblClick = (e: MouseEvent) => {
-    if (isRenamingThis) return;
-    onItemDoubleClick(e, sidebarItem);
-  };
-
-  // Own tours: full tour.name (includes path hierarchy) for inline rename.
-  // Foreign tours: the full custom name if set, otherwise the full displayed name
-  // (which is already substituted by applyCustomNames before tree building).
+  // Own tours: full name for inline rename. Foreign: custom name if set.
   const renameInitialValue = owned
     ? tour.name
-    : (customNames.get(numericId(tour)) ?? tour.name);
+    : (customNames.get(tour.id) ?? tour.name);
 
   return (
     <li
@@ -349,11 +340,14 @@ function TourTreeItem({
         data-sidebar-index
         draggable={!isRenamingThis}
         onClick={(e: MouseEvent) => {
-          if (isRenamingThis) return;
-          e.stopPropagation();
-          onItemClick(e, sidebarItem, flatIdx);
+          if (!isRenamingThis) {
+            e.stopPropagation();
+            onItemClick(e, sidebarItem, flatIdx);
+          }
         }}
-        onDblClick={handleDblClick}
+        onDblClick={(e: MouseEvent) => {
+          if (!isRenamingThis) onItemDoubleClick(e, sidebarItem);
+        }}
         onDragStart={(e: DragEvent) => onDragStart(e, sidebarItem)}
         onDragEnd={onDragEnd}
         onTouchStart={(e: TouchEvent) => {

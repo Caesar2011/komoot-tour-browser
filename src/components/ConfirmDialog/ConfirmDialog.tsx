@@ -90,12 +90,12 @@ export function ConfirmDialog({
         </div>
       )}
 
-      <div class={styles.actions}>
-        <button ref={cancelRef} class={styles.cancelBtn} onClick={onCancel}>
+      <div class="dialog-actions">
+        <button ref={cancelRef} class="btn btn-primary" onClick={onCancel}>
           {cancelLabel}
         </button>
         <button
-          class={styles.confirmBtn}
+          class="btn btn-danger-outline"
           onClick={onConfirm}
           disabled={!isConfirmEnabled}
         >

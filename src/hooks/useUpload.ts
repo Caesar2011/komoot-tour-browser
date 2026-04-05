@@ -30,11 +30,5 @@ export function useUpload(addTour: (tour: Tour) => void) {
     [addTour],
   );
 
-  return {
-    showUpload,
-    setShowUpload,
-    uploading,
-    uploadError,
-    handleUpload,
-  } as const;
+  return { showUpload, setShowUpload, uploading, uploadError, handleUpload };
 }

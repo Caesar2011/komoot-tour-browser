@@ -18,6 +18,7 @@ import {
   formatDur,
   isOwnTour,
   resolveCoverImageUrl,
+  resolveRawCoverUrl,
   sportIcon,
 } from '../../../logic/utils.ts';
 import { Api } from '../../../logic/api.ts';
@@ -53,10 +54,13 @@ interface Props {
 }
 
 function getTourOwner(tour: Tour): string {
-  if (tour._embedded?.creator?.display_name)
-    return tour._embedded.creator.display_name;
-  if (tour._embedded?.creator?.username) return tour._embedded.creator.username;
-  return Api.displayName || Api.userId || '–';
+  return (
+    (tour._embedded?.creator?.display_name ??
+      tour._embedded?.creator?.username ??
+      Api.displayName) ||
+    Api.userId ||
+    '–'
+  );
 }
 
 export function TourDetail({
@@ -145,9 +149,7 @@ export function TourDetail({
   const timelineImages = timeline
     .filter((e) => e.cover?.src)
     .slice(0, 12)
-    .map((e) =>
-      resolveCoverImageUrl(e.cover!.src, e.cover!.templated, 300, 200),
-    )
+    .map((e) => resolveRawCoverUrl(e.cover!.src, e.cover!.templated, 300, 200))
     .filter(Boolean);
 
   const canEditSport = owned && isRecorded;

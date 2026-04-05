@@ -37,5 +37,5 @@ export function useAuth() {
     handleAuthError,
     handleLogin,
     handleLogout,
-  } as const;
+  };
 }

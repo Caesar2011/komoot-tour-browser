@@ -103,11 +103,11 @@ export function UploadDialog({ uploading, error, onUpload, onClose }: Props) {
           <div class="form-error">{localError || error}</div>
         )}
 
-        <div class={styles.actions}>
-          <button type="button" class={styles.cancelBtn} onClick={onClose}>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" class={styles.saveBtn} disabled={uploading}>
+          <button type="submit" class="btn btn-primary" disabled={uploading}>
             {uploading ? 'Uploading…' : 'Upload'}
           </button>
         </div>

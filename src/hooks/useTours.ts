@@ -49,14 +49,12 @@ export function useTours(
     return () => controller.abort();
   }, [authenticated, loadTours]);
 
-  /** Invalidate the cached tour list and reload from network. */
   const refreshTours = useCallback(async () => {
     await Api.invalidateToursCache();
     const controller = new AbortController();
     await loadTours(controller.signal);
   }, [loadTours]);
 
-  /** Tours with custom names substituted — used for display only. */
   const displayTours = useMemo(
     () => applyCustomNames(allTours, customNames, userId),
     [allTours, customNames, userId],
@@ -105,5 +103,5 @@ export function useTours(
     addTour,
     removeTour,
     refreshTours,
-  } as const;
+  };
 }

@@ -1,65 +1,34 @@
-import type {
-  Coordinate,
-  CoverImage,
-  ExportFormat,
-  FolderContext,
-  Selection,
-  SurfaceSegment,
-  TimelineEntry,
-  Tour,
-  TourStatus,
-  WayTypeSegment,
-} from '../../types.ts';
+import { useAppContext } from '../../contexts/useAppContext.ts';
 
 import { Breadcrumb } from './Breadcrumb/Breadcrumb.tsx';
 import { TourList } from './TourList/TourList.tsx';
 import { TourDetail } from './TourDetail/TourDetail.tsx';
 import styles from './DetailPanel.module.css';
 
-interface Props {
-  selection: Selection | null;
-  folderTours: Tour[];
-  tour: Tour | null;
-  coords: Coordinate[] | null;
-  folderContext: FolderContext | null;
-  timeline: TimelineEntry[];
-  coverImages: CoverImage[];
-  wayTypes: WayTypeSegment[];
-  surfaces: SurfaceSegment[];
-  onSelectFolder: (path: string) => void;
-  onSelectTour: (tour: Tour) => void;
-  onRename: (tour: Tour) => void;
-  onPatchTour: (
-    tourId: number,
-    fields: Partial<{ sport: string; status: TourStatus }>,
-  ) => Promise<void>;
-  onDeleteTour: (tour: Tour) => void;
-  onRefresh: (tour: Tour, folderContext: FolderContext | null) => Promise<void>;
-  lastExportFormat: ExportFormat;
-  onSetExportFormat: (f: ExportFormat) => void;
-  customNames: Map<number, string>;
-}
+export function DetailPanel() {
+  const {
+    sel,
+    handlePatchTour,
+    requestDeleteTours,
+    requestRenameTour,
+    handleRefreshDetail,
+    lastExportFormat,
+    setLastExportFormat,
+    customNameHook,
+  } = useAppContext();
 
-export function DetailPanel({
-  selection,
-  folderTours,
-  tour,
-  coords,
-  folderContext,
-  timeline,
-  coverImages,
-  wayTypes,
-  surfaces,
-  onSelectFolder,
-  onSelectTour,
-  onRename,
-  onPatchTour,
-  onDeleteTour,
-  onRefresh,
-  lastExportFormat,
-  onSetExportFormat,
-  customNames,
-}: Props) {
+  const {
+    selection,
+    folderTours,
+    detailTour,
+    detailCoords,
+    detailFolderContext,
+    detailTimeline,
+    detailCoverImages,
+    detailWayTypes,
+    detailSurfaces,
+  } = sel;
+
   if (!selection) {
     return (
       <div class={styles.panel} tabIndex={0}>
@@ -77,14 +46,17 @@ export function DetailPanel({
     return (
       <div class={styles.panel} tabIndex={0}>
         <div class={styles.content}>
-          <Breadcrumb path={selection.path} onNavigate={onSelectFolder} />
+          <Breadcrumb
+            path={selection.path}
+            onNavigate={sel.handleSelectFolder}
+          />
           <div class={styles.listHeader}>
             📁 {selection.path || 'All Tours'} ({folderTours.length} tours)
           </div>
           <TourList
             tours={folderTours}
             activeTourId={null}
-            onSelectTour={onSelectTour}
+            onSelectTour={sel.handleSelectTourFromList}
           />
         </div>
       </div>
@@ -94,9 +66,12 @@ export function DetailPanel({
   return (
     <div class={styles.panel} tabIndex={0}>
       <div class={styles.content}>
-        {folderContext && (
+        {detailFolderContext && (
           <>
-            <Breadcrumb path={folderContext.path} onNavigate={onSelectFolder} />
+            <Breadcrumb
+              path={detailFolderContext.path}
+              onNavigate={sel.handleSelectFolder}
+            />
             <div class={styles.backLink}>
               <span
                 class={styles.backLinkText}
@@ -105,32 +80,32 @@ export function DetailPanel({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    onSelectFolder(folderContext.path);
+                    sel.handleSelectFolder(detailFolderContext.path);
                   }
                 }}
-                onClick={() => onSelectFolder(folderContext.path)}
+                onClick={() => sel.handleSelectFolder(detailFolderContext.path)}
               >
                 ← Back to list
               </span>
             </div>
           </>
         )}
-        {tour && (
+        {detailTour && (
           <TourDetail
-            tour={tour}
-            coords={coords ?? null}
-            timeline={timeline}
-            coverImages={coverImages}
-            wayTypes={wayTypes}
-            surfaces={surfaces}
-            folderContext={folderContext}
-            onRename={onRename}
-            onPatchTour={onPatchTour}
-            onDeleteTour={onDeleteTour}
-            onRefresh={onRefresh}
+            tour={detailTour}
+            coords={detailCoords ?? null}
+            timeline={detailTimeline}
+            coverImages={detailCoverImages}
+            wayTypes={detailWayTypes}
+            surfaces={detailSurfaces}
+            folderContext={detailFolderContext}
+            onRename={requestRenameTour}
+            onPatchTour={handlePatchTour}
+            onDeleteTour={(tour) => requestDeleteTours([tour])}
+            onRefresh={handleRefreshDetail}
             lastExportFormat={lastExportFormat}
-            onSetExportFormat={onSetExportFormat}
-            customNames={customNames}
+            onSetExportFormat={setLastExportFormat}
+            customNames={customNameHook.customNames}
           />
         )}
       </div>

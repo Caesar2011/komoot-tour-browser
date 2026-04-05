@@ -4,7 +4,7 @@ import type { Tour, TreeNode } from '../types.ts';
 import { Api } from '../logic/api.ts';
 import { isOwnTour } from '../logic/utils.ts';
 import { computeFolderRenames } from '../logic/rename.ts';
-import { renameTourUnified, numericId } from '../logic/tourName.ts';
+import { renameTourUnified } from '../logic/tourName.ts';
 import { collectTours, findNode } from '../logic/tree.ts';
 
 export function useRename(
@@ -41,7 +41,7 @@ export function useRename(
             applyTourUpdate(tourId, { name: newName });
             updateDetailTour(tourId, { name: newName });
           } else {
-            await setCustomName(numericId(tour), newName);
+            await setCustomName(tour.id, newName);
           }
         }),
       );
@@ -49,8 +49,5 @@ export function useRename(
     [applyTourUpdate, updateDetailTour, setCustomName],
   );
 
-  return {
-    handleInlineRename,
-    handleFolderRename,
-  } as const;
+  return { handleInlineRename, handleFolderRename };
 }

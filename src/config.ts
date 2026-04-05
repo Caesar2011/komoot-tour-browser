@@ -1,55 +1,49 @@
-export const SPORT_ICONS = Object.freeze({
-  hike: '🥾',
-  hiking: '🥾',
-  mountaineering: '⛰️',
-  touringbicycle: '🚴',
-  racebike: '🚴‍♂️',
-  gravel_cycling: '🚴',
-  mtb: '🚵',
-  mtb_easy: '🚵',
-  mtb_advanced: '🚵',
-  mtb_enduro: '🚵',
-  e_touringbicycle: '⚡',
-  e_mtb: '⚡',
-  e_racebike: '⚡',
-  jogging: '🏃',
-  running: '🏃',
-  nordic: '⛷️',
-  nordic_walking: '🚶',
-  skitour: '⛷️',
-  snowshoe: '🏔️',
-  climbing: '🧗',
-} as const);
+interface SportDef {
+  icon: string;
+  label: string;
+}
 
-export const SPORT_LABELS: Record<string, string> = {
-  hike: 'Hiking',
-  hiking: 'Hiking',
-  mountaineering: 'Mountaineering',
-  touringbicycle: 'Touring Bicycle',
-  racebike: 'Race Bike',
-  gravel_cycling: 'Gravel Cycling',
-  mtb: 'Mountain Bike',
-  mtb_easy: 'MTB Easy',
-  mtb_advanced: 'MTB Advanced',
-  mtb_enduro: 'MTB Enduro',
-  e_touringbicycle: 'E-Touring',
-  e_mtb: 'E-MTB',
-  e_racebike: 'E-Race Bike',
-  jogging: 'Running',
-  running: 'Running',
-  nordic: 'Cross-Country Skiing',
-  nordic_walking: 'Nordic Walking',
-  skitour: 'Ski Tour',
-  snowshoe: 'Snowshoeing',
-  climbing: 'Climbing',
-};
+const SPORTS: Readonly<Record<string, SportDef>> = Object.freeze({
+  hike: { icon: '🥾', label: 'Hiking' },
+  hiking: { icon: '🥾', label: 'Hiking' },
+  mountaineering: { icon: '⛰️', label: 'Mountaineering' },
+  touringbicycle: { icon: '🚴', label: 'Touring Bicycle' },
+  racebike: { icon: '🚴‍♂️', label: 'Race Bike' },
+  gravel_cycling: { icon: '🚴', label: 'Gravel Cycling' },
+  mtb: { icon: '🚵', label: 'Mountain Bike' },
+  mtb_easy: { icon: '🚵', label: 'MTB Easy' },
+  mtb_advanced: { icon: '🚵', label: 'MTB Advanced' },
+  mtb_enduro: { icon: '🚵', label: 'MTB Enduro' },
+  e_touringbicycle: { icon: '⚡', label: 'E-Touring' },
+  e_mtb: { icon: '⚡', label: 'E-MTB' },
+  e_racebike: { icon: '⚡', label: 'E-Race Bike' },
+  jogging: { icon: '🏃', label: 'Running' },
+  running: { icon: '🏃', label: 'Running' },
+  nordic: { icon: '⛷️', label: 'Cross-Country Skiing' },
+  nordic_walking: { icon: '🚶', label: 'Nordic Walking' },
+  skitour: { icon: '⛷️', label: 'Ski Tour' },
+  snowshoe: { icon: '🏔️', label: 'Snowshoeing' },
+  climbing: { icon: '🧗', label: 'Climbing' },
+});
+
+/** Backwards-compatible icon lookup. */
+export const SPORT_ICONS: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(Object.entries(SPORTS).map(([k, v]) => [k, v.icon])),
+);
+
+/** Backwards-compatible label lookup. */
+export const SPORT_LABELS: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(Object.entries(SPORTS).map(([k, v]) => [k, v.label])),
+);
+
+export type KnownSport = keyof typeof SPORTS;
 
 /** Deduplicated sport entries sorted by label. Computed once at module load. */
 export const UNIQUE_SPORTS: readonly [string, string][] = (() => {
   const seen = new Set<string>();
   const result: [string, string][] = [];
-  for (const [key, label] of Object.entries(SPORT_LABELS).sort(([, a], [, b]) =>
-    a.localeCompare(b),
+  for (const [key, { label }] of Object.entries(SPORTS).sort(([, a], [, b]) =>
+    a.label.localeCompare(b.label),
   )) {
     if (!seen.has(label)) {
       seen.add(label);
@@ -137,6 +131,5 @@ export const CONFIG = Object.freeze({
   COVER_IMAGE_WIDTH: 200,
   COVER_IMAGE_HEIGHT: 120,
   CACHE_TTL_MS: 48 * 60 * 60 * 1000,
-  /** Delay to distinguish single-click from double-click in sidebar. */
   CLICK_ACTIVATE_DELAY_MS: 200,
 });

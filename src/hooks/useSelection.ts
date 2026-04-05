@@ -99,6 +99,8 @@ export function useSelection(
         const newTracks: TrackEntry[] = [];
 
         for (let i = 0; i < eagerBatch.length; i++) {
+          if (signal.aborted) return;
+
           const r = coordResults[i];
           const t = eagerBatch[i];
           const c = CONFIG.COLORS[i % CONFIG.COLORS.length];
@@ -406,5 +408,5 @@ export function useSelection(
     clearDetail,
     refreshDetail,
     reset,
-  } as const;
+  };
 }

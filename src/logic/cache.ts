@@ -15,23 +15,57 @@ export interface CustomNameRecord {
   updatedAt: number;
 }
 
+/** Simple LRU map with a max capacity. Evicts least-recently-used on set. */
+export class LruMap<K, V> {
+  private map = new Map<K, V>();
+  constructor(private capacity: number) {}
+
+  get(key: K): V | undefined {
+    const val = this.map.get(key);
+    if (val === undefined) return undefined;
+    // Move to end (most recently used)
+    this.map.delete(key);
+    this.map.set(key, val);
+    return val;
+  }
+
+  set(key: K, value: V): void {
+    if (this.map.has(key)) this.map.delete(key);
+    this.map.set(key, value);
+    if (this.map.size > this.capacity) {
+      // Delete the first (oldest) entry
+      const firstKey = this.map.keys().next().value!;
+      this.map.delete(firstKey);
+    }
+  }
+
+  has(key: K): boolean {
+    return this.map.has(key);
+  }
+
+  delete(key: K): void {
+    this.map.delete(key);
+  }
+
+  clear(): void {
+    this.map.clear();
+  }
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
+    req.onupgradeneeded = () => {
       const db = req.result;
-      // v1 store
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE);
       }
-      // v2 stores
       if (!db.objectStoreNames.contains(STORE_CN)) {
         db.createObjectStore(STORE_CN, { keyPath: 'tourId' });
       }
       if (!db.objectStoreNames.contains(STORE_META)) {
         db.createObjectStore(STORE_META);
       }
-      void e;
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -67,19 +101,20 @@ function idbPut<T>(
   });
 }
 
-function idbDelete(store: IDBObjectStore, key: IDBValidKey): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const req = store.delete(key);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
-}
-
 function idbGetAllValues<T>(store: IDBObjectStore): Promise<T[]> {
   return new Promise((resolve, reject) => {
     const req = store.getAll();
     req.onsuccess = () => resolve(req.result as T[]);
     req.onerror = () => reject(req.error);
+  });
+}
+
+/** Wait for an IDB transaction to complete. */
+function txComplete(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('Transaction aborted'));
   });
 }
 
@@ -116,14 +151,9 @@ export async function cacheSet<T>(key: string, value: T): Promise<void> {
   try {
     const db = await getDb();
     const entry: CacheEntry<T> = { value, cachedAt: Date.now() };
-    await new Promise<void>((resolve, reject) => {
-      const req = db
-        .transaction(STORE, 'readwrite')
-        .objectStore(STORE)
-        .put(entry, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(entry, key);
+    await txComplete(tx);
   } catch {
     // Cache failures are non-fatal
   }
@@ -132,20 +162,15 @@ export async function cacheSet<T>(key: string, value: T): Promise<void> {
 export async function cacheDelete(key: string): Promise<void> {
   try {
     const db = await getDb();
-    await new Promise<void>((resolve, reject) => {
-      const req = db
-        .transaction(STORE, 'readwrite')
-        .objectStore(STORE)
-        .delete(key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(key);
+    await txComplete(tx);
   } catch {
     // ignore
   }
 }
 
-/** Delete all keys matching a prefix (e.g. all detail data for a tour). */
+/** Delete all keys matching a prefix in a single transaction. */
 export async function cacheDeletePrefix(prefix: string): Promise<void> {
   try {
     const db = await getDb();
@@ -159,9 +184,11 @@ export async function cacheDeletePrefix(prefix: string): Promise<void> {
     });
     const matching = (keys as string[]).filter((k) => k.startsWith(prefix));
     if (matching.length === 0) return;
-    const db2 = await getDb();
-    const store = db2.transaction(STORE, 'readwrite').objectStore(STORE);
-    await Promise.all(matching.map((k) => idbDelete(store, k)));
+    // Single readwrite transaction for all deletes
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const k of matching) store.delete(k);
+    await txComplete(tx);
   } catch {
     // ignore
   }
@@ -178,13 +205,15 @@ export async function cachePatchTour<T extends { id: number }>(
 ): Promise<void> {
   try {
     const db = await getDb();
-    const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
     const entry = await idbGet<CacheEntry<T[]>>(store, listKey);
     if (!entry) return;
     const updated = entry.value.map((t) =>
       t.id === tourId ? { ...t, ...fields } : t,
     );
     await idbPut(store, { value: updated, cachedAt: entry.cachedAt }, listKey);
+    await txComplete(tx);
   } catch {
     // ignore
   }
@@ -192,7 +221,6 @@ export async function cachePatchTour<T extends { id: number }>(
 
 /**
  * Remove a tour by id from a cached tour list in-place.
- * Preserves the original `cachedAt` timestamp.
  */
 export async function cacheRemoveTour<T extends { id: number }>(
   listKey: string,
@@ -200,11 +228,13 @@ export async function cacheRemoveTour<T extends { id: number }>(
 ): Promise<void> {
   try {
     const db = await getDb();
-    const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
     const entry = await idbGet<CacheEntry<T[]>>(store, listKey);
     if (!entry) return;
     const updated = entry.value.filter((t) => t.id !== tourId);
     await idbPut(store, { value: updated, cachedAt: entry.cachedAt }, listKey);
+    await txComplete(tx);
   } catch {
     // ignore
   }
@@ -212,7 +242,6 @@ export async function cacheRemoveTour<T extends { id: number }>(
 
 /**
  * Prepend a tour to a cached tour list in-place.
- * Preserves the original `cachedAt` timestamp.
  */
 export async function cachePrependTour<T extends { id: number }>(
   listKey: string,
@@ -220,11 +249,13 @@ export async function cachePrependTour<T extends { id: number }>(
 ): Promise<void> {
   try {
     const db = await getDb();
-    const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
     const entry = await idbGet<CacheEntry<T[]>>(store, listKey);
     if (!entry) return;
     const updated = [tour, ...entry.value.filter((t) => t.id !== tour.id)];
     await idbPut(store, { value: updated, cachedAt: entry.cachedAt }, listKey);
+    await txComplete(tx);
   } catch {
     // ignore
   }
@@ -232,7 +263,6 @@ export async function cachePrependTour<T extends { id: number }>(
 
 // ── custom_names store helpers ─────────────────────────────────────────────
 
-/** Return all custom name records. */
 export async function cnGetAll(): Promise<CustomNameRecord[]> {
   try {
     const db = await getDb();
@@ -243,23 +273,23 @@ export async function cnGetAll(): Promise<CustomNameRecord[]> {
   }
 }
 
-/** Upsert a custom name record. */
 export async function cnPut(record: CustomNameRecord): Promise<void> {
   try {
     const db = await getDb();
-    const store = db.transaction(STORE_CN, 'readwrite').objectStore(STORE_CN);
-    await idbPut(store, record);
+    const tx = db.transaction(STORE_CN, 'readwrite');
+    await idbPut(tx.objectStore(STORE_CN), record);
+    await txComplete(tx);
   } catch {
     // ignore
   }
 }
 
-/** Delete a custom name record by tourId. */
 export async function cnDelete(tourId: number): Promise<void> {
   try {
     const db = await getDb();
-    const store = db.transaction(STORE_CN, 'readwrite').objectStore(STORE_CN);
-    await idbDelete(store, tourId);
+    const tx = db.transaction(STORE_CN, 'readwrite');
+    tx.objectStore(STORE_CN).delete(tourId);
+    await txComplete(tx);
   } catch {
     // ignore
   }
@@ -267,7 +297,6 @@ export async function cnDelete(tourId: number): Promise<void> {
 
 // ── meta store helpers ─────────────────────────────────────────────────────
 
-/** Read a value from the meta store. */
 export async function metaGet<T>(key: string): Promise<T | undefined> {
   try {
     const db = await getDb();
@@ -280,14 +309,12 @@ export async function metaGet<T>(key: string): Promise<T | undefined> {
   }
 }
 
-/** Write a value to the meta store. */
 export async function metaPut<T>(key: string, value: T): Promise<void> {
   try {
     const db = await getDb();
-    const store = db
-      .transaction(STORE_META, 'readwrite')
-      .objectStore(STORE_META);
-    await idbPut(store, value, key);
+    const tx = db.transaction(STORE_META, 'readwrite');
+    await idbPut(tx.objectStore(STORE_META), value, key);
+    await txComplete(tx);
   } catch {
     // ignore
   }

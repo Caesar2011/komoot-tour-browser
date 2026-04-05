@@ -18,7 +18,7 @@ import {
   selectionItemFromSidebarItem,
   resolveEffectiveTours,
 } from '../logic/selection.ts';
-import { formatDist, formatDur } from '../logic/utils.ts';
+import { formatDist, formatDur, pluralizeTours } from '../logic/utils.ts';
 
 export interface SidebarSelectionState {
   focusIndex: number;
@@ -47,6 +47,12 @@ export function useSidebarSelection(
     useState<SidebarSelectionState['activeItem']>(null);
   const [shiftAnchor, setShiftAnchor] = useState<number | null>(null);
   const [renamingItem, setRenamingItem] = useState<SidebarItem | null>(null);
+
+  const focusIndexRef = useRef(focusIndex);
+  focusIndexRef.current = focusIndex;
+
+  const shiftAnchorRef = useRef(shiftAnchor);
+  shiftAnchorRef.current = shiftAnchor;
 
   const flatItems = useMemo(
     () => (tree ? flattenTree(tree, openPaths) : []),
@@ -91,7 +97,7 @@ export function useSidebarSelection(
       count,
       distance,
       duration,
-      label: `${count} tour${count !== 1 ? 's' : ''} · ${formatDist(distance)} · ${formatDur(duration)}`,
+      label: `${pluralizeTours(count)} · ${formatDist(distance)} · ${formatDur(duration)}`,
     };
   }, [selected, effectiveTours]);
 
@@ -159,49 +165,48 @@ export function useSidebarSelection(
   const handleShiftClick = useCallback(
     (_item: SidebarItem, index: number) => {
       setFocusIndex(index);
-      const anchor = shiftAnchor ?? index;
+      const anchor = shiftAnchorRef.current ?? index;
       selectRange(anchor, index);
     },
-    [shiftAnchor, selectRange],
+    [selectRange],
   );
 
   const activateFocused = useCallback(() => {
-    if (focusIndex < 0 || focusIndex >= flatItems.length) return;
-    const item = flatItems[focusIndex];
+    const idx = focusIndexRef.current;
+    if (idx < 0 || idx >= flatItems.length) return;
+    const item = flatItems[idx];
     if (item.type === 'tour' && item.tour) {
       setActiveItem({ type: 'tour', path: item.path, tourId: item.tour.id });
     } else {
       setActiveItem({ type: 'folder', path: item.path });
     }
-  }, [focusIndex, flatItems]);
+  }, [flatItems]);
 
   const handleSpace = useCallback(() => {
-    if (focusIndex < 0 || focusIndex >= flatItems.length) return;
-    const item = flatItems[focusIndex];
-    selectOnly(item);
-    setShiftAnchor(focusIndex);
-  }, [focusIndex, flatItems, selectOnly]);
+    const idx = focusIndexRef.current;
+    if (idx < 0 || idx >= flatItems.length) return;
+    selectOnly(flatItems[idx]);
+    setShiftAnchor(idx);
+  }, [flatItems, selectOnly]);
 
   const handleCtrlSpace = useCallback(() => {
-    if (focusIndex < 0 || focusIndex >= flatItems.length) return;
-    const item = flatItems[focusIndex];
-    toggleSelect(item);
-    setShiftAnchor(focusIndex);
-  }, [focusIndex, flatItems, toggleSelect]);
-
-  const shiftAnchorRef = useRef(shiftAnchor);
-  shiftAnchorRef.current = shiftAnchor;
+    const idx = focusIndexRef.current;
+    if (idx < 0 || idx >= flatItems.length) return;
+    toggleSelect(flatItems[idx]);
+    setShiftAnchor(idx);
+  }, [flatItems, toggleSelect]);
 
   const handleShiftArrow = useCallback(
     (newFocusIndex: number) => {
-      const anchor = shiftAnchorRef.current ?? focusIndex;
+      const currentFocus = focusIndexRef.current;
+      const anchor = shiftAnchorRef.current ?? currentFocus;
       if (shiftAnchorRef.current == null) {
-        setShiftAnchor(focusIndex);
+        setShiftAnchor(currentFocus);
       }
       setFocusIndex(newFocusIndex);
       selectRange(anchor, newFocusIndex);
     },
-    [focusIndex, selectRange],
+    [selectRange],
   );
 
   const setActive = useCallback((item: SidebarSelectionState['activeItem']) => {
@@ -209,10 +214,11 @@ export function useSidebarSelection(
   }, []);
 
   const startRename = useCallback(() => {
-    if (focusIndex >= 0 && focusIndex < flatItems.length) {
-      setRenamingItem(flatItems[focusIndex]);
+    const idx = focusIndexRef.current;
+    if (idx >= 0 && idx < flatItems.length) {
+      setRenamingItem(flatItems[idx]);
     }
-  }, [focusIndex, flatItems]);
+  }, [flatItems]);
 
   const startRenameFor = useCallback((item: SidebarItem) => {
     setRenamingItem(item);
@@ -221,8 +227,6 @@ export function useSidebarSelection(
   const finishRename = useCallback(
     (item: SidebarItem) => {
       setRenamingItem(null);
-      // After rename the tree may have rebuilt — try to find the item
-      // by its key; if not found (path changed), just clear rename state.
       const idx = flatItems.findIndex((fi) => itemKey(fi) === itemKey(item));
       if (idx >= 0) {
         setFocusIndex(idx);
@@ -237,7 +241,6 @@ export function useSidebarSelection(
           setActiveItem({ type: 'folder', path: item.path });
         }
       }
-      // If not found, selection/focus stay as-is (tree will rebuild)
     },
     [flatItems, selectOnly],
   );
@@ -274,5 +277,5 @@ export function useSidebarSelection(
     startRenameFor,
     finishRename,
     cancelRename,
-  } as const;
+  };
 }

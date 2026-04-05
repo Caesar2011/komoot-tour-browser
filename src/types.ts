@@ -1,8 +1,7 @@
-import type { SPORT_ICONS } from './config.ts';
+import type { KnownSport } from './config.ts';
 
 export type TourType = 'tour_recorded' | 'tour_planned';
 export type TourStatus = 'public' | 'private' | 'friends';
-export type KnownSport = keyof typeof SPORT_ICONS;
 export type SportType = KnownSport | (string & {});
 
 export type SortField = 'date' | 'name' | 'distance' | 'elevation' | 'duration';
@@ -180,8 +179,6 @@ export interface SidebarItem {
   depth: number;
 }
 
-// --- Selection model ---
-
 export type SelectionItemKey = string;
 
 export interface SelectionItem {
@@ -191,8 +188,6 @@ export interface SelectionItem {
 }
 
 export type ExportFormat = 'gpx' | 'fit';
-
-// --- Bulk operation progress ---
 
 export interface BulkProgress {
   title: string;

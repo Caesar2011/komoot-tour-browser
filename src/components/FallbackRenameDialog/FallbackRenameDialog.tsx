@@ -66,11 +66,11 @@ export function FallbackRenameDialog({
         style={{ marginBottom: 16 }}
         autoFocus
       />
-      <div class={styles.actions}>
-        <button class={styles.cancelBtn} onClick={onCancel}>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" onClick={onCancel}>
           Cancel
         </button>
-        <button class={styles.saveBtn} onClick={handleSave} disabled={saving}>
+        <button class="btn btn-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>

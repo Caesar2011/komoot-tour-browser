@@ -8,6 +8,7 @@ import {
   formatDist,
   formatDur,
   niceStep,
+  pluralizeTours,
   sortToursByDate,
   sportIcon,
 } from './utils.ts';
@@ -62,6 +63,20 @@ describe('formatDate', () => {
   it('formats a valid ISO string', () => {
     const result = formatDate('2024-06-15T10:00:00Z');
     expect(result).toContain('2024');
+  });
+});
+
+describe('pluralizeTours', () => {
+  it('singular', () => {
+    expect(pluralizeTours(1)).toBe('1 tour');
+  });
+
+  it('plural', () => {
+    expect(pluralizeTours(5)).toBe('5 tours');
+  });
+
+  it('zero', () => {
+    expect(pluralizeTours(0)).toBe('0 tours');
   });
 });
 

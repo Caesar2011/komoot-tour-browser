@@ -11,7 +11,6 @@ import type {
 } from '../types.ts';
 import { Api } from '../logic/api.ts';
 import { isOwnTour } from '../logic/utils.ts';
-import { numericId } from '../logic/tourName.ts';
 import {
   resolveEffectiveTours,
   computeMoveRenames,
@@ -48,8 +47,7 @@ export function useBulkOperations(
 
   const buildTourLookup = useCallback((): Map<number, Tour> => {
     if (!tree) return new Map();
-    const all = collectTours(tree);
-    return new Map(all.map((t) => [numericId(t), t]));
+    return new Map(collectTours(tree).map((t) => [t.id, t]));
   }, [tree]);
 
   const bulkDelete = useCallback(
@@ -140,7 +138,7 @@ export function useBulkOperations(
       for (let i = 0; i < renames.length; i++) {
         if (cancelledRef.current) break;
         const { tourId, newName } = renames[i];
-        const tour = tourLookup.get(numericId({ id: tourId }));
+        const tour = tourLookup.get(tourId);
         const owned = tour ? isOwnTour(tour, Api.userId) : true;
 
         try {
@@ -148,7 +146,7 @@ export function useBulkOperations(
             await Api.renameTour(tourId, newName);
             applyTourUpdate(tourId, { name: newName });
           } else {
-            await setCustomName(numericId({ id: tourId }), newName);
+            await setCustomName(tour!.id, newName);
           }
           success++;
         } catch (e) {
