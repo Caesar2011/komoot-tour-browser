@@ -11,7 +11,11 @@ import { TourTree } from './TourTree/TourTree.tsx';
 import { SelectionStatusBar } from './SelectionStatusBar/SelectionStatusBar.tsx';
 import styles from './Sidebar.module.css';
 
-export function Sidebar() {
+interface Props {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: Props) {
   const {
     userId,
     tours,
@@ -19,7 +23,7 @@ export function Sidebar() {
     sidebarSel,
     dragDrop,
     customNameHook,
-    handleActivateItem,
+    handleActivateItem: rawHandleActivateItem,
     handleBulkDelete,
     handleBulkExport,
     handleOpenInKomoot,
@@ -55,6 +59,14 @@ export function Sidebar() {
     finishRename,
     cancelRename,
   } = sidebarSel;
+
+  const handleActivateItem = useCallback(
+    async (type: 'folder' | 'tour', path: string, tourId?: number) => {
+      await rawHandleActivateItem(type, path, tourId);
+      onNavigate?.();
+    },
+    [rawHandleActivateItem, onNavigate],
+  );
 
   useEffect(() => {
     return () => {

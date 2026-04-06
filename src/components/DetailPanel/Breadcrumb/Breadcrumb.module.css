@@ -1,24 +1,21 @@
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 12px;
-  font-size: 12px;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  font-size: var(--text-xs);
   color: var(--c-text-muted);
   flex-wrap: wrap;
 }
-
 .link {
   color: var(--c-primary);
   cursor: pointer;
   font-weight: 600;
   text-decoration: none;
 }
-
 .link:hover {
   text-decoration: underline;
 }
-
 .sep {
   color: var(--c-text-faint);
 }

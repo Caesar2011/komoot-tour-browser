@@ -2,42 +2,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  height: 100dvh;
   background: linear-gradient(135deg, #4a6cf7 0%, #7c3aed 100%);
+  padding: var(--space-lg);
 }
 
 .box {
   background: var(--c-surface);
-  border-radius: 16px;
-  padding: 40px;
-  width: 400px;
-  max-width: 90vw;
+  border-radius: var(--space-lg);
+  padding: 2.5rem;
+  width: 25rem;
+  max-width: 100%;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
 }
-
 .box h1 {
-  font-size: 22px;
-  margin-bottom: 4px;
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-xs);
 }
-
 .subtitle {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--c-text-muted);
-  margin-bottom: 28px;
+  margin-bottom: var(--space-2xl);
 }
-
 .inputSpacing {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .btn {
   width: 100%;
-  padding: 12px;
+  padding: var(--space-md);
   background: var(--c-primary);
   color: #fff;
   border: none;
   border-radius: var(--radius);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   transition: background var(--transition);
 }
@@ -45,12 +43,10 @@
 .btn:hover {
   background: var(--c-primary-hover);
 }
-
 .btn:disabled {
   background: var(--c-text-faint);
   cursor: not-allowed;
 }
-
 .errorSpacing {
-  margin-top: 10px;
+  margin-top: 0.625rem;
 }

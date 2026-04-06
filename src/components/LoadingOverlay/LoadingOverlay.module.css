@@ -8,24 +8,21 @@
   justify-content: center;
   flex-direction: column;
 }
-
 .spinner {
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   border: 3px solid var(--c-border);
   border-top-color: var(--c-primary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-
 .text {
-  margin-top: 14px;
-  font-size: 13px;
+  margin-top: var(--space-md);
+  font-size: var(--text-base);
   color: var(--c-text-muted);
 }

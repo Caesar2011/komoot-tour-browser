@@ -106,22 +106,14 @@ export function ElevationProfile({
     up,
     down,
   } = derived;
-
   const H = CONFIG.ELEVATION_CANVAS_HEIGHT;
 
-  /*
-   * Build a color lookup function. The API segments use `from`/`to` as
-   * path segment indices that correspond directly to coordinate indices
-   * (each segment index maps to a coordinate). We look up which segment
-   * a given coordinate index falls into.
-   */
   const getSegmentColor = useMemo(() => {
     if (colorMode === 'waytype' && wayTypes.length > 0) {
       return (coordIdx: number): string => {
         for (const seg of wayTypes) {
-          if (coordIdx >= seg.from && coordIdx < seg.to) {
+          if (coordIdx >= seg.from && coordIdx < seg.to)
             return WAY_TYPE_COLORS[seg.element] || FALLBACK_COLOR;
-          }
         }
         return DEFAULT_LINE_COLOR;
       };
@@ -129,9 +121,8 @@ export function ElevationProfile({
     if (colorMode === 'surface' && surfaces.length > 0) {
       return (coordIdx: number): string => {
         for (const seg of surfaces) {
-          if (coordIdx >= seg.from && coordIdx < seg.to) {
+          if (coordIdx >= seg.from && coordIdx < seg.to)
             return SURFACE_COLORS[seg.element] || FALLBACK_COLOR;
-          }
         }
         return DEFAULT_LINE_COLOR;
       };
@@ -162,7 +153,6 @@ export function ElevationProfile({
       const y = (a: number) =>
         PAD_TOP + plotH - ((a - minAlt) / altRange) * plotH;
 
-      // Grid lines
       ctx.strokeStyle = '#e5e7eb';
       ctx.lineWidth = 0.5;
       const altStep = niceStep(altRange, 5);
@@ -180,39 +170,34 @@ export function ElevationProfile({
         ctx.fillText(Math.round(a) + ' m', PAD_LEFT - 6, py);
       }
 
-      // Distance labels
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       const distStep = niceStep(totalDist / 1000, 6);
       for (let d = 0; d <= totalDist / 1000; d += distStep) {
-        const px = x(d * 1000);
         ctx.fillText(
           d.toFixed(distStep < 1 ? 1 : 0) + ' km',
-          px,
+          x(d * 1000),
           H - PAD_BOTTOM + 6,
         );
       }
 
       if (getSegmentColor) {
-        // Draw colored segments based on way type or surface
         for (let i = 0; i < samples - 1; i++) {
-          const x1 = x(sampleDists[i]);
-          const x2 = x(sampleDists[i + 1]);
-          const y1 = y(sampleAlts[i]);
-          const y2 = y(sampleAlts[i + 1]);
+          const x1 = x(sampleDists[i]),
+            x2 = x(sampleDists[i + 1]);
+          const y1 = y(sampleAlts[i]),
+            y2 = y(sampleAlts[i + 1]);
           const color = getSegmentColor(sampleIndices[i]);
 
-          // Filled area under segment
           ctx.beginPath();
           ctx.moveTo(x1, PAD_TOP + plotH);
           ctx.lineTo(x1, y1);
           ctx.lineTo(x2, y2);
           ctx.lineTo(x2, PAD_TOP + plotH);
           ctx.closePath();
-          ctx.fillStyle = color + '40'; // ~25% opacity
+          ctx.fillStyle = color + '40';
           ctx.fill();
 
-          // Line on top
           ctx.beginPath();
           ctx.moveTo(x1, y1);
           ctx.lineTo(x2, y2);
@@ -222,7 +207,6 @@ export function ElevationProfile({
           ctx.stroke();
         }
       } else {
-        // Default: solid gradient fill + single-color line
         const grad = ctx.createLinearGradient(0, PAD_TOP, 0, PAD_TOP + plotH);
         grad.addColorStop(0, 'rgba(74,108,247,0.3)');
         grad.addColorStop(1, 'rgba(74,108,247,0.02)');
@@ -237,8 +221,8 @@ export function ElevationProfile({
 
         ctx.beginPath();
         for (let i = 0; i < samples; i++) {
-          const px = x(sampleDists[i]);
-          const py = y(sampleAlts[i]);
+          const px = x(sampleDists[i]),
+            py = y(sampleAlts[i]);
           if (i === 0) ctx.moveTo(px, py);
           else ctx.lineTo(px, py);
         }
@@ -300,19 +284,16 @@ export function ElevationProfile({
     if (tooltipRef.current) tooltipRef.current.style.display = 'none';
   };
 
-  // Collect unique element keys for the active color mode's legend
   const legendItems = useMemo(() => {
     if (colorMode === 'waytype') {
-      const unique = [...new Set(wayTypes.map((w) => w.element))];
-      return unique.map((el) => ({
+      return [...new Set(wayTypes.map((w) => w.element))].map((el) => ({
         key: el,
         label: elementLabel(el),
         color: WAY_TYPE_COLORS[el] || FALLBACK_COLOR,
       }));
     }
     if (colorMode === 'surface') {
-      const unique = [...new Set(surfaces.map((s) => s.element))];
-      return unique.map((el) => ({
+      return [...new Set(surfaces.map((s) => s.element))].map((el) => ({
         key: el,
         label: elementLabel(el),
         color: SURFACE_COLORS[el] || FALLBACK_COLOR,
@@ -328,14 +309,14 @@ export function ElevationProfile({
         {(hasWayTypes || hasSurfaces) && (
           <div class={styles.colorToggles}>
             <button
-              class={`${styles.colorBtn} ${colorMode === 'none' ? styles.colorBtnActive : ''}`}
+              class={`pill-btn ${colorMode === 'none' ? 'pill-btn-active' : ''}`}
               onClick={() => setColorMode('none')}
             >
               Plain
             </button>
             {hasWayTypes && (
               <button
-                class={`${styles.colorBtn} ${colorMode === 'waytype' ? styles.colorBtnActive : ''}`}
+                class={`pill-btn ${colorMode === 'waytype' ? 'pill-btn-active' : ''}`}
                 onClick={() => setColorMode('waytype')}
               >
                 Way Types
@@ -343,7 +324,7 @@ export function ElevationProfile({
             )}
             {hasSurfaces && (
               <button
-                class={`${styles.colorBtn} ${colorMode === 'surface' ? styles.colorBtnActive : ''}`}
+                class={`pill-btn ${colorMode === 'surface' ? 'pill-btn-active' : ''}`}
                 onClick={() => setColorMode('surface')}
               >
                 Surfaces

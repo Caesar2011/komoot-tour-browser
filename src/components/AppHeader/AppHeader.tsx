@@ -4,17 +4,32 @@ interface Props {
   displayName: string;
   onLogout: () => void;
   onUpload: () => void;
+  onToggleSidebar: () => void;
 }
 
-export function AppHeader({ displayName, onLogout, onUpload }: Props) {
+export function AppHeader({
+  displayName,
+  onLogout,
+  onUpload,
+  onToggleSidebar,
+}: Props) {
   return (
     <header class={styles.header}>
-      <h2>🏔️ Komoot Tour Browser</h2>
+      <div class={styles.left}>
+        <button
+          class={`icon-btn ${styles.hamburger}`}
+          onClick={onToggleSidebar}
+          aria-label="Toggle sidebar"
+        >
+          ☰
+        </button>
+        <h2 class={styles.title}>🏔️ Komoot Tour Browser</h2>
+      </div>
       <div class={styles.userInfo}>
         <button class={styles.uploadBtn} onClick={onUpload} tabIndex={0}>
-          📤 Upload
+          📤 <span class={styles.uploadLabel}>Upload</span>
         </button>
-        <span>{displayName}</span>
+        <span class={styles.displayName}>{displayName}</span>
         <button class={styles.logoutBtn} onClick={onLogout} tabIndex={0}>
           Logout
         </button>

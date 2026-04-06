@@ -71,7 +71,7 @@ export function FilterPanel({ filters, onChange, allTours }: Props) {
         <div class={styles.row}>
           <span class={styles.label}>Type</span>
           <button
-            class={`${styles.toggleBtn} ${filters.type ? styles.active : ''}`}
+            class={`pill-btn ${filters.type ? 'pill-btn-active' : ''}`}
             onClick={cycleType}
             title="Click to cycle: All → Recorded → Planned"
           >

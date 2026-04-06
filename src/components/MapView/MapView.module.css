@@ -1,16 +1,13 @@
 .container {
   flex: 1;
-  min-height: 200px;
+  min-height: 12.5rem;
   position: relative;
   z-index: 1;
 }
-
 .map {
   height: 100%;
   width: 100%;
 }
-
-/* Override Leaflet tooltip for cover images */
 :global(.cover-tooltip) {
   padding: 4px !important;
   border-radius: 6px !important;

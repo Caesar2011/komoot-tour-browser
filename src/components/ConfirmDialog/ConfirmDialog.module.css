@@ -1,57 +1,53 @@
 .title {
-  font-size: 16px;
-  margin-bottom: 8px;
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-sm);
 }
-
 .message {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--c-text-muted);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-md);
   line-height: 1.5;
 }
-
 .warning {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--c-danger);
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
   line-height: 1.5;
   font-weight: 600;
 }
 
 .statsRow {
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm);
   align-items: center;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--c-text);
-  margin-bottom: 12px;
-  padding: 8px 12px;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--c-bg);
   border-radius: var(--radius);
 }
 
 .confirmField {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
-
 .confirmLabel {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--c-text-muted);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-sm);
 }
 
 .confirmInput {
   width: 100%;
-  padding: 8px 10px;
+  padding: var(--space-sm) 0.625rem;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: var(--text-base);
   font-family: inherit;
   outline: none;
 }
-
 .confirmInput:focus {
   border-color: var(--c-primary);
   box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.15);

@@ -1,3 +1,5 @@
+import { useCallback, useState } from 'preact/hooks';
+
 import { useAppContext } from '../contexts/useAppContext.ts';
 
 import { LoadingOverlay } from './LoadingOverlay/LoadingOverlay.tsx';
@@ -6,12 +8,16 @@ import { AppHeader } from './AppHeader/AppHeader.tsx';
 import { Sidebar } from './Sidebar/Sidebar.tsx';
 import { MapView } from './MapView/MapView.tsx';
 import { DetailPanel } from './DetailPanel/DetailPanel.tsx';
+import styles from './AppShell.module.css';
 
 export function AppShell() {
   const { auth, tours, sel, bulk, upload } = useAppContext();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isLoading = tours.loading || sel.loading;
   const loadingText = sel.loading ? sel.loadingText : 'Loading tours…';
+
+  const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
 
   if (!auth.authenticated) {
     return (
@@ -28,9 +34,7 @@ export function AppShell() {
         visible={isLoading && !bulk.progress}
         text={loadingText}
       />
-      <div
-        style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}
-      >
+      <div class={styles.shell}>
         <AppHeader
           displayName={auth.displayName}
           onLogout={() => {
@@ -38,43 +42,25 @@ export function AppShell() {
             auth.handleLogout();
           }}
           onUpload={() => upload.setShowUpload(true)}
+          onToggleSidebar={() => setSidebarOpen((p) => !p)}
         />
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          <Sidebar />
+        <div class={styles.body}>
           <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
+            class={`${styles.sidebarOverlay} ${sidebarOpen ? styles.sidebarOverlayVisible : ''}`}
+            onClick={handleCloseSidebar}
+          />
+          <div
+            class={`${styles.sidebarWrap} ${sidebarOpen ? styles.sidebarOpen : ''}`}
           >
+            <Sidebar onNavigate={handleCloseSidebar} />
+          </div>
+          <div class={styles.main}>
             <MapView tracks={sel.tracks} onTrackClick={sel.handleTrackClick} />
             <DetailPanel />
           </div>
         </div>
       </div>
-      {tours.error && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            padding: '12px 20px',
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            zIndex: 10000,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          }}
-        >
-          {tours.error}
-        </div>
-      )}
+      {tours.error && <div class={styles.errorBanner}>{tours.error}</div>}
     </>
   );
 }

@@ -1,7 +1,7 @@
 .header {
   background: var(--c-surface);
   border-bottom: 1px solid var(--c-border);
-  padding: 0 20px;
+  padding: 0 var(--space-xl);
   height: var(--header-h);
   display: flex;
   align-items: center;
@@ -9,30 +9,57 @@
   flex-shrink: 0;
   box-shadow: var(--shadow-sm);
   z-index: 50;
+  gap: var(--space-sm);
 }
 
-.header h2 {
-  font-size: 16px;
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-lg);
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hamburger {
+  display: none;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.25rem;
+  color: var(--c-text);
 }
 
 .userInfo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 13px;
+  gap: var(--space-md);
+  font-size: var(--text-base);
   color: var(--c-text-muted);
+  flex-shrink: 0;
+}
+
+.displayName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .uploadBtn {
-  padding: 5px 12px;
+  padding: 0.3125rem var(--space-md);
   background: var(--c-primary);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   transition: all var(--transition);
+  white-space: nowrap;
 }
 
 .uploadBtn:hover {
@@ -40,12 +67,12 @@
 }
 
 .logoutBtn {
-  padding: 5px 12px;
+  padding: 0.3125rem var(--space-md);
   background: none;
   color: var(--c-danger);
   border: 1px solid var(--c-danger);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   transition: all var(--transition);
 }
@@ -53,4 +80,19 @@
 .logoutBtn:hover {
   background: var(--c-danger);
   color: #fff;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 var(--space-md);
+  }
+  .hamburger {
+    display: flex;
+  }
+  .displayName {
+    display: none;
+  }
+  .uploadLabel {
+    display: none;
+  }
 }

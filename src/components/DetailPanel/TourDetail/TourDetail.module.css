@@ -1,156 +1,114 @@
+.detailRoot {
+  container-type: inline-size;
+  container-name: detail;
+}
+
 .header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
   flex-wrap: wrap;
 }
 
-.titleRow {
-  flex: 1;
+.titleBlock {
+  flex: 1 1 0;
   min-width: 0;
 }
 
 .title {
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 700;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: var(--space-sm);
   flex-wrap: wrap;
+  word-break: break-word;
 }
 
 .customBadge {
-  font-size: 14px;
+  font-size: var(--text-md);
   cursor: default;
 }
 
 .subtitle {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--c-text-muted);
-  margin-top: 4px;
+  margin-top: var(--space-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .actions {
   display: flex;
-  gap: 6px;
+  gap: var(--space-sm);
   flex-shrink: 0;
   flex-wrap: wrap;
-}
-
-.actionBtn {
-  padding: 4px 10px;
-  background: none;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--c-text-muted);
-  transition: all var(--transition);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.actionBtn:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
-}
-
-.actionBtn:focus-visible {
-  outline: 2px solid var(--c-primary);
-  outline-offset: 2px;
-}
-
-.actionBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.deleteBtn {
-  color: var(--c-danger);
-  border-color: var(--c-danger);
-}
-
-.deleteBtn:hover {
-  background: var(--c-danger);
-  color: #fff;
-  border-color: var(--c-danger);
+  align-items: center;
 }
 
 .komootLink {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  background: none;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--c-text-muted);
-  text-decoration: none;
-  transition: all var(--transition);
-  white-space: nowrap;
 }
 
-.komootLink:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
+.deleteBtn {
+  color: var(--c-danger) !important;
+  border-color: var(--c-danger) !important;
 }
-
-.komootLink:focus-visible {
-  outline: 2px solid var(--c-primary);
-  outline-offset: 2px;
+.deleteBtn:hover {
+  background: var(--c-danger) !important;
+  color: #fff !important;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-  margin-top: 14px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.625rem;
+  margin-top: var(--space-md);
 }
 
 .stat {
   background: var(--c-bg);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: var(--space-md);
 }
-
 .statLabel {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--c-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
 }
-
 .statValue {
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 700;
-  margin-top: 4px;
+  margin-top: var(--space-xs);
 }
 
 .editRow {
   display: flex;
-  gap: 16px;
-  margin-top: 12px;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
   flex-wrap: wrap;
+  align-items: center;
 }
-
 .editField {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
-
 .editLabel {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--c-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-
 .editValue {
-  font-size: 13px;
+  font-size: var(--text-base);
   color: var(--c-text);
 }
 
@@ -158,14 +116,13 @@
   position: relative;
   display: inline-block;
 }
-
 .styledSelectWrap::after {
   content: '▾';
   position: absolute;
-  right: 8px;
+  right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--c-text-faint);
   pointer-events: none;
 }
@@ -173,10 +130,10 @@
 .styledSelect {
   appearance: none;
   -webkit-appearance: none;
-  padding: 4px 24px 4px 8px;
+  padding: 0.25rem 1.5rem 0.25rem 0.5rem;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-family: inherit;
   outline: none;
   background: var(--c-surface);
@@ -191,7 +148,6 @@
 .styledSelect:hover {
   border-color: var(--c-primary);
 }
-
 .styledSelect:focus {
   border-color: var(--c-primary);
   box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.15);
@@ -199,63 +155,63 @@
 
 .statusToggleGroup {
   display: flex;
-  gap: 4px;
-}
-
-.statusToggle {
-  padding: 3px 8px;
-  border: 1px solid var(--c-border);
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  background: var(--c-bg);
-  color: var(--c-text-muted);
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-
-.statusToggle:hover {
-  border-color: var(--c-primary);
-}
-
-.statusToggleActive {
-  background: var(--c-primary-light);
-  border-color: var(--c-primary);
-  color: var(--c-primary);
+  gap: var(--space-xs);
 }
 
 .patchError {
   color: var(--c-danger);
-  font-size: 12px;
-  margin-top: 6px;
+  font-size: var(--text-xs);
+  margin-top: var(--space-sm);
 }
 
 .section {
-  margin-top: 16px;
+  margin-top: var(--space-lg);
 }
-
 .sectionTitle {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--c-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 .imageGrid {
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm);
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding-bottom: var(--space-xs);
   scrollbar-width: thin;
 }
-
 .coverImg {
-  width: 160px;
-  height: 100px;
+  width: 10rem;
+  height: 6.25rem;
   object-fit: cover;
   border-radius: var(--radius);
   flex-shrink: 0;
+}
+
+@container detail (max-width: 640px) {
+  .header {
+    flex-direction: column;
+  }
+  .titleBlock {
+    width: 100%;
+  }
+  .subtitle {
+    white-space: normal;
+  }
+  .actions {
+    width: 100%;
+  }
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .statValue {
+    font-size: var(--text-lg);
+  }
+  .coverImg {
+    width: 8rem;
+    height: 5rem;
+  }
 }

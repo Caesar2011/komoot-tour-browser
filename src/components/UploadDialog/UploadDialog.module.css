@@ -1,9 +1,8 @@
 .fileInput {
   width: 100%;
-  margin-bottom: 16px;
-  font-size: 13px;
+  margin-bottom: var(--space-lg);
+  font-size: var(--text-base);
 }
-
 .inputSpacing {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }

@@ -4,11 +4,11 @@
 }
 
 .main {
-  padding: 3px 8px;
+  padding: 0.1875rem var(--space-sm);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
   background: var(--c-surface);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--c-text-muted);
   cursor: pointer;
@@ -21,23 +21,21 @@
   border-color: var(--c-primary);
   color: var(--c-primary);
 }
-
 .main:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
 .md .main {
-  padding: 4px 10px;
+  padding: 0.25rem 0.625rem;
 }
 
 .arrow {
-  padding: 3px 4px;
+  padding: 0.1875rem 0.25rem;
   border: 1px solid var(--c-border);
   border-left: none;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--c-surface);
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--c-text-faint);
   cursor: pointer;
   transition: all var(--transition);
@@ -48,9 +46,8 @@
   color: var(--c-primary);
   border-color: var(--c-primary);
 }
-
 .md .arrow {
-  padding: 4px 5px;
+  padding: 0.25rem 0.3125rem;
 }
 
 .menu {
@@ -62,17 +59,17 @@
   border-radius: var(--radius-sm);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   padding: 2px;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-xs);
   z-index: 100;
 }
 
 .option {
   display: block;
   width: 100%;
-  padding: 4px 12px;
+  padding: 0.25rem var(--space-md);
   border: none;
   background: none;
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--c-text);
   cursor: pointer;
@@ -80,11 +77,9 @@
   border-radius: 2px;
   font-family: inherit;
 }
-
 .option:hover {
   background: var(--c-primary-light);
 }
-
 .active {
   color: var(--c-primary);
 }

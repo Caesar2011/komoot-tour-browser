@@ -164,9 +164,9 @@ export function TourDetail({
       : 'Set a custom local name for this tour';
 
   return (
-    <>
+    <div class={styles.detailRoot}>
       <div class={styles.header}>
-        <div class={styles.titleRow}>
+        <div class={styles.titleBlock}>
           <div class={styles.title}>
             {sportIcon(tour.sport)} {displayName || 'Unnamed'}
             {hasCustom && (
@@ -179,13 +179,16 @@ export function TourDetail({
             )}
           </div>
           <div class={styles.subtitle}>
-            {isRecorded ? '✅ Recorded' : '📋 Planned'} · {tourOwner} ·{' '}
+            {isRecorded ? '✅ Recorded' : '📋 Planned'}
+            {' · '}
+            {tourOwner}
+            {' · '}
             {formatDate(tour.date)}
           </div>
         </div>
         <div class={styles.actions}>
           <a
-            class={styles.komootLink}
+            class={`outline-btn ${styles.komootLink}`}
             href={komootTourUrl(tour.id)}
             target="_blank"
             rel="noopener noreferrer"
@@ -194,7 +197,7 @@ export function TourDetail({
             🔗 Komoot
           </a>
           <button
-            class={styles.actionBtn}
+            class="outline-btn"
             onClick={() => onRename(tour)}
             title={renameTitle}
             tabIndex={0}
@@ -209,7 +212,7 @@ export function TourDetail({
             size="md"
           />
           <button
-            class={styles.actionBtn}
+            class="outline-btn"
             onClick={handleRefresh}
             disabled={refreshing}
             title="Force refresh from server (clears 48h cache)"
@@ -219,7 +222,7 @@ export function TourDetail({
           </button>
           {owned && (
             <button
-              class={`${styles.actionBtn} ${styles.deleteBtn}`}
+              class={`outline-btn ${styles.deleteBtn}`}
               onClick={() => onDeleteTour(tour)}
               tabIndex={0}
             >
@@ -271,7 +274,7 @@ export function TourDetail({
               {(['private', 'friends', 'public'] as TourStatus[]).map((s) => (
                 <button
                   key={s}
-                  class={`${styles.statusToggle} ${tour.status === s ? styles.statusToggleActive : ''}`}
+                  class={`pill-btn ${tour.status === s ? 'pill-btn-active' : ''}`}
                   onClick={() => handleStatusChange(s)}
                 >
                   {s === 'private' ? '🔒' : s === 'friends' ? '👥' : '🌍'} {s}
@@ -327,6 +330,6 @@ export function TourDetail({
           surfaces={surfaces}
         />
       )}
-    </>
+    </div>
   );
 }
