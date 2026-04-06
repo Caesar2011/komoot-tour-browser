@@ -1,0 +1,85 @@
+.shell {
+  display: flex;
+  height: 100dvh;
+  flex-direction: column;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebarWrap {
+  flex-shrink: 0;
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  display: flex;
+}
+
+.sidebarOverlay {
+  display: none;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.errorBanner {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: var(--space-md) var(--space-xl);
+  border-radius: var(--radius);
+  font-size: var(--text-base);
+  font-weight: 600;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 90vw;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .sidebarWrap {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-mobile-w);
+    max-width: var(--sidebar-mobile-max-w);
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 250ms ease;
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebarOverlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: var(--header-h);
+    z-index: 199;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 250ms ease;
+  }
+
+  .sidebarOverlayVisible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
