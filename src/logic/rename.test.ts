@@ -104,13 +104,13 @@ describe('computeFolderRenames', () => {
 
     expect(results).toHaveLength(3);
     expect(results.find((r) => r.tourId === 1)!.newName).toBe(
-      'Dolomites / Summit Hike',
+      'Europe / Dolomites / Summit Hike',
     );
     expect(results.find((r) => r.tourId === 2)!.newName).toBe(
-      'Dolomites / Tyrol / Valley Walk',
+      'Europe / Dolomites / Tyrol / Valley Walk',
     );
     expect(results.find((r) => r.tourId === 3)!.newName).toBe(
-      'Dolomites / Easy Trail',
+      'Europe / Dolomites / Easy Trail',
     );
   });
 
@@ -123,8 +123,12 @@ describe('computeFolderRenames', () => {
     const results = computeFolderRenames('A/B/C', 'X', tree);
 
     expect(results).toHaveLength(2);
-    expect(results.find((r) => r.tourId === 1)!.newName).toBe('X / Tour 1');
-    expect(results.find((r) => r.tourId === 2)!.newName).toBe('X / D / Tour 2');
+    expect(results.find((r) => r.tourId === 1)!.newName).toBe(
+      'A / B / X / Tour 1',
+    );
+    expect(results.find((r) => r.tourId === 2)!.newName).toBe(
+      'A / B / X / D / Tour 2',
+    );
   });
 
   it('returns empty for nonexistent path', () => {
